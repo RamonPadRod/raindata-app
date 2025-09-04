@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "hn.unah.raindata"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "hn.unah.raindata"
