@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import hn.unah.raindata.ui.ui.HomeScreen
 import hn.unah.raindata.ui.ui.ListaVoluntariosScreen
+import hn.unah.raindata.ui.ui.MainLayout
 import hn.unah.raindata.ui.ui.RegistroVoluntarioScreen
 import hn.unah.raindata.ui.theme.RainDataTheme
 
@@ -25,29 +26,43 @@ class MainActivity : ComponentActivity() {
             RainDataTheme {
                 var pantallaActual by remember { mutableStateOf(Pantalla.HOME) }
 
-                when (pantallaActual) {
-                    Pantalla.HOME -> {
-                        HomeScreen(
-                            onNavigateToVoluntarios = {
-                                pantallaActual = Pantalla.LISTA_VOLUNTARIOS
-                            }
-                        )
+                MainLayout(
+                    currentScreen = when(pantallaActual) {
+                        Pantalla.HOME -> "HOME"
+                        Pantalla.LISTA_VOLUNTARIOS -> "VOLUNTARIOS"
+                        Pantalla.REGISTRO_VOLUNTARIO -> "REGISTRO_VOLUNTARIO"
+                    },
+                    onNavigateToHome = {
+                        pantallaActual = Pantalla.HOME
+                    },
+                    onNavigateToVoluntarios = {
+                        pantallaActual = Pantalla.LISTA_VOLUNTARIOS
                     }
+                ) {
+                    when (pantallaActual) {
+                        Pantalla.HOME -> {
+                            HomeScreen(
+                                onNavigateToVoluntarios = {
+                                    pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                                }
+                            )
+                        }
 
-                    Pantalla.LISTA_VOLUNTARIOS -> {
-                        ListaVoluntariosScreen(
-                            onAgregarVoluntario = {
-                                pantallaActual = Pantalla.REGISTRO_VOLUNTARIO
-                            }
-                        )
-                    }
+                        Pantalla.LISTA_VOLUNTARIOS -> {
+                            ListaVoluntariosScreen(
+                                onAgregarVoluntario = {
+                                    pantallaActual = Pantalla.REGISTRO_VOLUNTARIO
+                                }
+                            )
+                        }
 
-                    Pantalla.REGISTRO_VOLUNTARIO -> {
-                        RegistroVoluntarioScreen(
-                            onVoluntarioGuardado = {
-                                pantallaActual = Pantalla.LISTA_VOLUNTARIOS
-                            }
-                        )
+                        Pantalla.REGISTRO_VOLUNTARIO -> {
+                            RegistroVoluntarioScreen(
+                                onVoluntarioGuardado = {
+                                    pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                                }
+                            )
+                        }
                     }
                 }
             }
