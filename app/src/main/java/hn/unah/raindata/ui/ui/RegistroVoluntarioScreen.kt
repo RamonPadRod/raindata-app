@@ -26,8 +26,11 @@ fun RegistroVoluntarioScreen(
     var telefono by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var cedula by remember { mutableStateOf("") }
-    var ocupacion by remember { mutableStateOf("") }
+    var tipoUsuario by remember { mutableStateOf("") }
+    var expandedTipoUsuario by remember { mutableStateOf(false) }
     var observaciones by remember { mutableStateOf("") }
+
+    val tiposUsuario = listOf("Observador", "Voluntario", "Administrador")
 
     Column(
         modifier = Modifier
@@ -80,12 +83,36 @@ fun RegistroVoluntarioScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
-                    value = ocupacion,
-                    onValueChange = { ocupacion = it },
-                    label = { Text("Ocupación") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Campo de Tipo de Usuario con dropdown
+                ExposedDropdownMenuBox(
+                    expanded = expandedTipoUsuario,
+                    onExpandedChange = { expandedTipoUsuario = it }
+                ) {
+                    OutlinedTextField(
+                        value = tipoUsuario,
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Tipo de Usuario") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTipoUsuario) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedTipoUsuario,
+                        onDismissRequest = { expandedTipoUsuario = false }
+                    ) {
+                        tiposUsuario.forEach { tipo ->
+                            DropdownMenuItem(
+                                text = { Text(tipo) },
+                                onClick = {
+                                    tipoUsuario = tipo
+                                    expandedTipoUsuario = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -156,11 +183,38 @@ fun RegistroVoluntarioScreen(
             }
         }
 
-        // Botones
+        // Botones - Cancelar, Limpiar, Guardar
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            OutlinedButton(
+                onClick = onVoluntarioGuardado, // Regresa a la pantalla anterior
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Cancelar")
+            }
+
+            OutlinedButton(
+                onClick = {
+                    // Limpiar formulario
+                    nombre = ""
+                    direccion = ""
+                    departamento = ""
+                    municipio = ""
+                    aldea = ""
+                    caserioBarrioColonia = ""
+                    telefono = ""
+                    email = ""
+                    cedula = ""
+                    tipoUsuario = ""
+                    observaciones = ""
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Limpiar")
+            }
+
             Button(
                 onClick = {
                     if (nombre.isNotBlank() && direccion.isNotBlank() &&
@@ -176,7 +230,7 @@ fun RegistroVoluntarioScreen(
                             telefono = telefono.ifBlank { null },
                             email = email.ifBlank { null },
                             cedula = cedula.ifBlank { null },
-                            ocupacion = ocupacion.ifBlank { null },
+                            tipo_usuario = tipoUsuario.ifBlank { null },
                             observaciones = observaciones.ifBlank { null }
                         )
 
@@ -187,26 +241,6 @@ fun RegistroVoluntarioScreen(
                 modifier = Modifier.weight(1f)
             ) {
                 Text("Guardar Voluntario")
-            }
-
-            OutlinedButton(
-                onClick = {
-                    // Limpiar formulario
-                    nombre = ""
-                    direccion = ""
-                    departamento = ""
-                    municipio = ""
-                    aldea = ""
-                    caserioBarrioColonia = ""
-                    telefono = ""
-                    email = ""
-                    cedula = ""
-                    ocupacion = ""
-                    observaciones = ""
-                },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Limpiar")
             }
         }
     }

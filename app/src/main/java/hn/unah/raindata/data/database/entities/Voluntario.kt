@@ -15,7 +15,7 @@ data class Voluntario(
     val cedula: String? = null,
     val fecha_nacimiento: String? = null,
     val genero: String? = null,
-    val ocupacion: String? = null,
+    val tipo_usuario: String? = null, // Cambiado de ocupacion
     val experiencia_años: Int? = null,
     val observaciones: String? = null,
     val activo: Boolean = true,
