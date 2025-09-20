@@ -9,28 +9,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
 
     companion object {
         private const val DATABASE_NAME = "raindata_database"
-        private const val DATABASE_VERSION = 1
-
-        // Tabla voluntarios
-        private const val TABLE_VOLUNTARIOS = "voluntarios"
-        private const val COLUMN_ID = "id"
-        private const val COLUMN_NOMBRE = "nombre"
-        private const val COLUMN_DIRECCION = "direccion"
-        private const val COLUMN_DEPARTAMENTO = "departamento"
-        private const val COLUMN_MUNICIPIO = "municipio"
-        private const val COLUMN_ALDEA = "aldea"
-        private const val COLUMN_CASERIO = "caserio_barrio_colonia"
-        private const val COLUMN_TELEFONO = "telefono"
-        private const val COLUMN_EMAIL = "email"
-        private const val COLUMN_CEDULA = "cedula"
-        private const val COLUMN_FECHA_NACIMIENTO = "fecha_nacimiento"
-        private const val COLUMN_GENERO = "genero"
-        private const val COLUMN_OCUPACION = "ocupacion"
-        private const val COLUMN_EXPERIENCIA = "experiencia_años"
-        private const val COLUMN_OBSERVACIONES = "observaciones"
-        private const val COLUMN_ACTIVO = "activo"
-        private const val COLUMN_FECHA_CREACION = "fecha_creacion"
-        private const val COLUMN_FECHA_MODIFICACION = "fecha_modificacion"
+        private const val DATABASE_VERSION = 2
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -46,25 +25,25 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
 
     override fun onCreate(db: SQLiteDatabase) {
         val createVoluntariosTable = """
-            CREATE TABLE $TABLE_VOLUNTARIOS (
-                $COLUMN_ID TEXT PRIMARY KEY,
-                $COLUMN_NOMBRE TEXT NOT NULL,
-                $COLUMN_DIRECCION TEXT NOT NULL,
-                $COLUMN_DEPARTAMENTO TEXT NOT NULL,
-                $COLUMN_MUNICIPIO TEXT NOT NULL,
-                $COLUMN_ALDEA TEXT NOT NULL,
-                $COLUMN_CASERIO TEXT,
-                $COLUMN_TELEFONO TEXT,
-                $COLUMN_EMAIL TEXT,
-                $COLUMN_CEDULA TEXT,
-                $COLUMN_FECHA_NACIMIENTO TEXT,
-                $COLUMN_GENERO TEXT,
-                $COLUMN_OCUPACION TEXT,
-                $COLUMN_EXPERIENCIA INTEGER,
-                $COLUMN_OBSERVACIONES TEXT,
-                $COLUMN_ACTIVO INTEGER DEFAULT 1,
-                $COLUMN_FECHA_CREACION INTEGER,
-                $COLUMN_FECHA_MODIFICACION INTEGER
+            CREATE TABLE voluntarios (
+                id TEXT PRIMARY KEY,
+                nombre TEXT NOT NULL,
+                direccion TEXT NOT NULL,
+                departamento TEXT NOT NULL,
+                municipio TEXT NOT NULL,
+                aldea TEXT NOT NULL,
+                caserio_barrio_colonia TEXT,
+                telefono TEXT,
+                email TEXT,
+                cedula TEXT,
+                fecha_nacimiento TEXT,
+                genero TEXT,
+                tipo_usuario TEXT,
+                experiencia_años INTEGER,
+                observaciones TEXT,
+                activo INTEGER DEFAULT 1,
+                fecha_creacion INTEGER,
+                fecha_modificacion INTEGER
             )
         """.trimIndent()
 
@@ -72,8 +51,17 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        db.execSQL("DROP TABLE IF EXISTS $TABLE_VOLUNTARIOS")
-        onCreate(db)
+        if (oldVersion < 2) {
+            // Migrar de ocupacion a tipo_usuario
+            try {
+                db.execSQL("ALTER TABLE voluntarios ADD COLUMN tipo_usuario TEXT")
+                db.execSQL("UPDATE voluntarios SET tipo_usuario = ocupacion WHERE ocupacion IS NOT NULL")
+            } catch (e: Exception) {
+                // Si falla la migración, recrear tabla
+                db.execSQL("DROP TABLE IF EXISTS voluntarios")
+                onCreate(db)
+            }
+        }
     }
 
     fun getVoluntarioDao(): VoluntarioDao {

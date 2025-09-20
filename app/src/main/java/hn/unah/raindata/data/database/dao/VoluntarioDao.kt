@@ -4,7 +4,6 @@ import android.content.ContentValues
 import android.database.Cursor
 import hn.unah.raindata.data.database.AppDatabase
 import hn.unah.raindata.data.database.entities.Voluntario
-import java.util.UUID
 
 class VoluntarioDao(private val dbHelper: AppDatabase) {
 
@@ -23,7 +22,7 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             put("cedula", voluntario.cedula)
             put("fecha_nacimiento", voluntario.fecha_nacimiento)
             put("genero", voluntario.genero)
-            put("ocupacion", voluntario.ocupacion)
+            put("tipo_usuario", voluntario.tipo_usuario)
             put("experiencia_años", voluntario.experiencia_años)
             put("observaciones", voluntario.observaciones)
             put("activo", if (voluntario.activo) 1 else 0)
@@ -118,7 +117,7 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             put("cedula", voluntario.cedula)
             put("fecha_nacimiento", voluntario.fecha_nacimiento)
             put("genero", voluntario.genero)
-            put("ocupacion", voluntario.ocupacion)
+            put("tipo_usuario", voluntario.tipo_usuario)
             put("experiencia_años", voluntario.experiencia_años)
             put("observaciones", voluntario.observaciones)
             put("activo", if (voluntario.activo) 1 else 0)
@@ -162,7 +161,16 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             cedula = cursor.getString(cursor.getColumnIndexOrThrow("cedula")),
             fecha_nacimiento = cursor.getString(cursor.getColumnIndexOrThrow("fecha_nacimiento")),
             genero = cursor.getString(cursor.getColumnIndexOrThrow("genero")),
-            ocupacion = cursor.getString(cursor.getColumnIndexOrThrow("ocupacion")),
+            tipo_usuario = try {
+                cursor.getString(cursor.getColumnIndexOrThrow("tipo_usuario"))
+            } catch (e: Exception) {
+                // Fallback a ocupacion si tipo_usuario no existe
+                try {
+                    cursor.getString(cursor.getColumnIndexOrThrow("ocupacion"))
+                } catch (e2: Exception) {
+                    null
+                }
+            },
             experiencia_años = if (cursor.isNull(cursor.getColumnIndexOrThrow("experiencia_años"))) null else cursor.getInt(cursor.getColumnIndexOrThrow("experiencia_años")),
             observaciones = cursor.getString(cursor.getColumnIndexOrThrow("observaciones")),
             activo = cursor.getInt(cursor.getColumnIndexOrThrow("activo")) == 1,

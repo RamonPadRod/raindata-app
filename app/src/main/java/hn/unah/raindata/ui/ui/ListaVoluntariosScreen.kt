@@ -149,9 +149,9 @@ fun VoluntarioCard(voluntario: Voluntario) {
                 )
             }
 
-            if (!voluntario.ocupacion.isNullOrBlank()) {
+            if (!voluntario.tipo_usuario.isNullOrBlank()) {
                 Text(
-                    text = "Ocupación: ${voluntario.ocupacion}",
+                    text = "Tipo: ${voluntario.tipo_usuario}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
