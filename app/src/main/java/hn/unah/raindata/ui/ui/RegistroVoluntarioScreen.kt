@@ -188,32 +188,6 @@ fun RegistroVoluntarioScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedButton(
-                onClick = onVoluntarioGuardado, // Regresa a la pantalla anterior
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Cancelar")
-            }
-
-            OutlinedButton(
-                onClick = {
-                    // Limpiar formulario
-                    nombre = ""
-                    direccion = ""
-                    departamento = ""
-                    municipio = ""
-                    aldea = ""
-                    caserioBarrioColonia = ""
-                    telefono = ""
-                    email = ""
-                    cedula = ""
-                    tipoUsuario = ""
-                    observaciones = ""
-                },
-                modifier = Modifier.weight(1f)
-            ) {
-                Text("Limpiar")
-            }
 
             Button(
                 onClick = {
@@ -240,7 +214,34 @@ fun RegistroVoluntarioScreen(
                 },
                 modifier = Modifier.weight(1f)
             ) {
-                Text("Guardar Voluntario")
+                Text("Guardar")
+            }
+
+            OutlinedButton(
+                onClick = {
+                    // Limpiar formulario
+                    nombre = ""
+                    direccion = ""
+                    departamento = ""
+                    municipio = ""
+                    aldea = ""
+                    caserioBarrioColonia = ""
+                    telefono = ""
+                    email = ""
+                    cedula = ""
+                    tipoUsuario = ""
+                    observaciones = ""
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Limpiar")
+            }
+
+            OutlinedButton(
+                onClick = onVoluntarioGuardado, // Regresa a la pantalla anterior
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Cancelar")
             }
         }
     }
