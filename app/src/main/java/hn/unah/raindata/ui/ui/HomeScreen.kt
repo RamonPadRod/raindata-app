@@ -16,7 +16,8 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToVoluntarios: () -> Unit = {}
+    onNavigateToVoluntarios: () -> Unit = {},
+    onNavigateToPluviometros: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -64,6 +65,24 @@ fun HomeScreen(
             modifier = Modifier.padding(vertical = 8.dp)
         )
 
+        // Gestión de Voluntarios (Funcional)
+        MenuCard(
+            title = "Gestión de Voluntarios",
+            description = "Administrar voluntarios y observadores del sistema",
+            icon = Icons.Default.Person,
+            isEnabled = true,
+            onClick = onNavigateToVoluntarios
+        )
+
+        // Gestión de Pluviómetros (NUEVO - Funcional)
+        MenuCard(
+            title = "Gestión de Pluviómetros",
+            description = "Registrar y administrar pluviómetros en el sistema",
+            icon = Icons.Default.LocationOn,
+            isEnabled = true,
+            onClick = onNavigateToPluviometros
+        )
+
         // Registro Pluviométrico
         MenuCard(
             title = "Datos Pluviométricos",
@@ -71,15 +90,6 @@ fun HomeScreen(
             icon = Icons.Default.WaterDrop,
             isEnabled = false,
             onClick = { /* Sin función por ahora */ }
-        )
-
-        // Registro de Voluntarios (Funcional)
-        MenuCard(
-            title = "Gestión de Voluntarios",
-            description = "Administrar voluntarios y observadores del sistema",
-            icon = Icons.Default.Person,
-            isEnabled = true,
-            onClick = onNavigateToVoluntarios
         )
 
         // Registro Climático
@@ -120,7 +130,7 @@ fun HomeScreen(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Actualmente solo está disponible la gestión de voluntarios. Los módulos de datos pluviométricos y climáticos estarán disponibles próximamente.",
+                    text = "Actualmente están disponibles la gestión de voluntarios y pluviómetros. Los módulos de datos pluviométricos y climáticos estarán disponibles próximamente.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
