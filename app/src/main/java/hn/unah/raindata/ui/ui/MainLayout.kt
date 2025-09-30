@@ -18,6 +18,7 @@ fun MainLayout(
     currentScreen: String,
     onNavigateToHome: () -> Unit,
     onNavigateToVoluntarios: () -> Unit,
+    onNavigateToPluviometros: () -> Unit,
     content: @Composable () -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -36,6 +37,10 @@ fun MainLayout(
                     onNavigateToVoluntarios()
                     scope.launch { drawerState.close() }
                 },
+                onNavigateToPluviometros = {
+                    onNavigateToPluviometros()
+                    scope.launch { drawerState.close() }
+                },
                 onCloseDrawer = {
                     scope.launch { drawerState.close() }
                 }
@@ -51,6 +56,8 @@ fun MainLayout(
                                 "HOME" -> "DatosLluvia"
                                 "VOLUNTARIOS" -> "Gestión de Voluntarios"
                                 "REGISTRO_VOLUNTARIO" -> "Registro de Voluntario"
+                                "PLUVIOMETROS" -> "Gestión de Pluviómetros"
+                                "REGISTRO_PLUVIOMETRO" -> "Registro de Pluviómetro"
                                 "DATOS_PLUVIOMETRICOS" -> "Datos Pluviométricos"
                                 "DATOS_CLIMATICOS" -> "Datos Climáticos"
                                 else -> "DatosLluvia"
@@ -96,6 +103,7 @@ fun DrawerContent(
     currentScreen: String,
     onNavigateToHome: () -> Unit,
     onNavigateToVoluntarios: () -> Unit,
+    onNavigateToPluviometros: () -> Unit,
     onCloseDrawer: () -> Unit
 ) {
     ModalDrawerSheet(
@@ -147,19 +155,27 @@ fun DrawerContent(
             )
 
             DrawerMenuItem(
-                icon = Icons.Default.WaterDrop,
-                title = "Datos Pluviométricos",
-                isSelected = currentScreen == "DATOS_PLUVIOMETRICOS",
-                isEnabled = false,
-                onClick = { /* Sin función por ahora */ }
-            )
-
-            DrawerMenuItem(
                 icon = Icons.Default.Person,
                 title = "Gestión de Voluntarios",
                 isSelected = currentScreen == "VOLUNTARIOS" || currentScreen == "REGISTRO_VOLUNTARIO",
                 isEnabled = true,
                 onClick = onNavigateToVoluntarios
+            )
+
+            DrawerMenuItem(
+                icon = Icons.Default.LocationOn,
+                title = "Gestión de Pluviómetros",
+                isSelected = currentScreen == "PLUVIOMETROS" || currentScreen == "REGISTRO_PLUVIOMETRO",
+                isEnabled = true,
+                onClick = onNavigateToPluviometros
+            )
+
+            DrawerMenuItem(
+                icon = Icons.Default.WaterDrop,
+                title = "Datos Pluviométricos",
+                isSelected = currentScreen == "DATOS_PLUVIOMETRICOS",
+                isEnabled = false,
+                onClick = { /* Sin función por ahora */ }
             )
 
             DrawerMenuItem(
