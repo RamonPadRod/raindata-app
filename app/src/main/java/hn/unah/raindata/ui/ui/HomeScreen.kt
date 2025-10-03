@@ -17,7 +17,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun HomeScreen(
     onNavigateToVoluntarios: () -> Unit = {},
-    onNavigateToPluviometros: () -> Unit = {}
+    onNavigateToPluviometros: () -> Unit = {},
+    onNavigateToDatosMeteorologicos: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -74,13 +75,22 @@ fun HomeScreen(
             onClick = onNavigateToVoluntarios
         )
 
-        // Gestión de Pluviómetros (NUEVO - Funcional)
+        // Gestión de Pluviómetros (Funcional)
         MenuCard(
             title = "Gestión de Pluviómetros",
             description = "Registrar y administrar pluviómetros en el sistema",
             icon = Icons.Default.LocationOn,
             isEnabled = true,
             onClick = onNavigateToPluviometros
+        )
+
+        // Datos Meteorológicos (NUEVO - Funcional)
+        MenuCard(
+            title = "Datos Meteorológicos",
+            description = "Registrar datos meteorológicos y condiciones climáticas",
+            icon = Icons.Default.CloudQueue,
+            isEnabled = true,
+            onClick = onNavigateToDatosMeteorologicos
         )
 
         // Registro Pluviométrico
@@ -92,11 +102,11 @@ fun HomeScreen(
             onClick = { /* Sin función por ahora */ }
         )
 
-        // Registro Climático
+        // Reportes y Estadísticas
         MenuCard(
-            title = "Datos Climáticos",
-            description = "Registrar condiciones climáticas y datos meteorológicos",
-            icon = Icons.Default.Thermostat,
+            title = "Reportes y Estadísticas",
+            description = "Generar reportes y visualizar estadísticas del sistema",
+            icon = Icons.Default.Assessment,
             isEnabled = false,
             onClick = { /* Sin función por ahora */ }
         )
@@ -130,7 +140,7 @@ fun HomeScreen(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Actualmente están disponibles la gestión de voluntarios y pluviómetros. Los módulos de datos pluviométricos y climáticos estarán disponibles próximamente.",
+                    text = "Actualmente están disponibles la gestión de voluntarios, pluviómetros y datos meteorológicos. Los módulos de datos pluviométricos y reportes estarán disponibles próximamente.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

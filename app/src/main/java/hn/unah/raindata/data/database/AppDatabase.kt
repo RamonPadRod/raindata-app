@@ -3,6 +3,7 @@ package hn.unah.raindata.data.database
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import hn.unah.raindata.data.database.dao.DatoMeteorologicoDao
 import hn.unah.raindata.data.database.dao.PluviometroDao
 import hn.unah.raindata.data.database.dao.VoluntarioDao
 
@@ -10,7 +11,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
 
     companion object {
         private const val DATABASE_NAME = "raindata_database"
-        private const val DATABASE_VERSION = 3 // Incrementado para incluir pluviómetros
+        private const val DATABASE_VERSION = 4 // ← CAMBIADO de 3 a 4
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -71,13 +72,40 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
             )
         """.trimIndent()
 
+        // ← NUEVA TABLA
+        val createDatosMeteorologicosTable = """
+            CREATE TABLE datos_meteorologicos (
+                id TEXT PRIMARY KEY,
+                voluntario_id TEXT NOT NULL,
+                voluntario_nombre TEXT NOT NULL,
+                pluviometro_id TEXT NOT NULL,
+                pluviometro_registro TEXT NOT NULL,
+                fecha TEXT NOT NULL,
+                hora TEXT NOT NULL,
+                precipitacion REAL NOT NULL,
+                temperatura_maxima REAL,
+                temperatura_minima REAL,
+                condicion_dia TEXT NOT NULL,
+                observaciones TEXT,
+                fecha_creacion INTEGER NOT NULL,
+                fecha_modificacion INTEGER NOT NULL,
+                FOREIGN KEY(voluntario_id) REFERENCES voluntarios(id),
+                FOREIGN KEY(pluviometro_id) REFERENCES pluviometros(id)
+            )
+        """.trimIndent()
+
         db.execSQL(createVoluntariosTable)
         db.execSQL(createPluviometrosTable)
+        db.execSQL(createDatosMeteorologicosTable) // ← NUEVA LÍNEA
 
         // Índices para mejorar rendimiento
         db.execSQL("CREATE INDEX idx_voluntarios_nombre ON voluntarios(nombre)")
         db.execSQL("CREATE INDEX idx_pluviometros_numero ON pluviometros(numero_registro)")
         db.execSQL("CREATE INDEX idx_pluviometros_responsable ON pluviometros(responsable_id)")
+        // ← NUEVOS ÍNDICES
+        db.execSQL("CREATE INDEX idx_datos_fecha ON datos_meteorologicos(fecha)")
+        db.execSQL("CREATE INDEX idx_datos_pluviometro ON datos_meteorologicos(pluviometro_id)")
+        db.execSQL("CREATE INDEX idx_datos_voluntario ON datos_meteorologicos(voluntario_id)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -92,7 +120,6 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
         }
 
         if (oldVersion < 3) {
-            // Crear tabla de pluviómetros en actualización
             val createPluviometrosTable = """
                 CREATE TABLE IF NOT EXISTS pluviometros (
                     id TEXT PRIMARY KEY,
@@ -118,6 +145,35 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_pluviometros_numero ON pluviometros(numero_registro)")
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_pluviometros_responsable ON pluviometros(responsable_id)")
         }
+
+        // ← NUEVO BLOQUE
+        if (oldVersion < 4) {
+            val createDatosMeteorologicosTable = """
+                CREATE TABLE IF NOT EXISTS datos_meteorologicos (
+                    id TEXT PRIMARY KEY,
+                    voluntario_id TEXT NOT NULL,
+                    voluntario_nombre TEXT NOT NULL,
+                    pluviometro_id TEXT NOT NULL,
+                    pluviometro_registro TEXT NOT NULL,
+                    fecha TEXT NOT NULL,
+                    hora TEXT NOT NULL,
+                    precipitacion REAL NOT NULL,
+                    temperatura_maxima REAL,
+                    temperatura_minima REAL,
+                    condicion_dia TEXT NOT NULL,
+                    observaciones TEXT,
+                    fecha_creacion INTEGER NOT NULL,
+                    fecha_modificacion INTEGER NOT NULL,
+                    FOREIGN KEY(voluntario_id) REFERENCES voluntarios(id),
+                    FOREIGN KEY(pluviometro_id) REFERENCES pluviometros(id)
+                )
+            """.trimIndent()
+
+            db.execSQL(createDatosMeteorologicosTable)
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_datos_fecha ON datos_meteorologicos(fecha)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_datos_pluviometro ON datos_meteorologicos(pluviometro_id)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_datos_voluntario ON datos_meteorologicos(voluntario_id)")
+        }
     }
 
     fun getVoluntarioDao(): VoluntarioDao {
@@ -126,5 +182,10 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
 
     fun getPluviometroDao(): PluviometroDao {
         return PluviometroDao(this)
+    }
+
+    // ← NUEVO MÉTODO
+    fun getDatoMeteorologicoDao(): DatoMeteorologicoDao {
+        return DatoMeteorologicoDao(this)
     }
 }

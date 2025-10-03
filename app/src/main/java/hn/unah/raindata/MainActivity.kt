@@ -14,7 +14,9 @@ enum class Pantalla {
     LISTA_VOLUNTARIOS,
     REGISTRO_VOLUNTARIO,
     LISTA_PLUVIOMETROS,
-    REGISTRO_PLUVIOMETRO
+    REGISTRO_PLUVIOMETRO,
+    LISTA_DATOS_METEOROLOGICOS,
+    REGISTRO_DATO_METEOROLOGICO
 }
 
 class MainActivity : ComponentActivity() {
@@ -32,6 +34,8 @@ class MainActivity : ComponentActivity() {
                         Pantalla.REGISTRO_VOLUNTARIO -> "REGISTRO_VOLUNTARIO"
                         Pantalla.LISTA_PLUVIOMETROS -> "PLUVIOMETROS"
                         Pantalla.REGISTRO_PLUVIOMETRO -> "REGISTRO_PLUVIOMETRO"
+                        Pantalla.LISTA_DATOS_METEOROLOGICOS -> "DATOS_METEOROLOGICOS"
+                        Pantalla.REGISTRO_DATO_METEOROLOGICO -> "REGISTRO_DATO_METEOROLOGICO"
                     },
                     onNavigateToHome = {
                         pantallaActual = Pantalla.HOME
@@ -41,6 +45,9 @@ class MainActivity : ComponentActivity() {
                     },
                     onNavigateToPluviometros = {
                         pantallaActual = Pantalla.LISTA_PLUVIOMETROS
+                    },
+                    onNavigateToDatosMeteorologicos = {
+                        pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                     }
                 ) {
                     when (pantallaActual) {
@@ -51,6 +58,9 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onNavigateToPluviometros = {
                                     pantallaActual = Pantalla.LISTA_PLUVIOMETROS
+                                },
+                                onNavigateToDatosMeteorologicos = {
+                                    pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                                 }
                             )
                         }
@@ -83,6 +93,22 @@ class MainActivity : ComponentActivity() {
                             RegistroPluviometroScreen(
                                 onPluviometroGuardado = {
                                     pantallaActual = Pantalla.LISTA_PLUVIOMETROS
+                                }
+                            )
+                        }
+
+                        Pantalla.LISTA_DATOS_METEOROLOGICOS -> {
+                            ListaDatosMeteorologicosScreen(
+                                onAgregarDato = {
+                                    pantallaActual = Pantalla.REGISTRO_DATO_METEOROLOGICO
+                                }
+                            )
+                        }
+
+                        Pantalla.REGISTRO_DATO_METEOROLOGICO -> {
+                            RegistroDatoMeteorologicoScreen(
+                                onDatoGuardado = {
+                                    pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                                 }
                             )
                         }
