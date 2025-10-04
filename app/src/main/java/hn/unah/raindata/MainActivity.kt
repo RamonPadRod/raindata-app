@@ -34,6 +34,9 @@ class MainActivity : ComponentActivity() {
                         LoginScreen(
                             onLoginSuccess = {
                                 pantallaActual = Pantalla.HOME
+                            },
+                            onNavigateToRegistroAdmin = {
+                                pantallaActual = Pantalla.REGISTRO_VOLUNTARIO
                             }
                         )
                     }
@@ -109,8 +112,13 @@ class MainActivity : ComponentActivity() {
                                 Pantalla.REGISTRO_VOLUNTARIO -> {
                                     RegistroVoluntarioScreen(
                                         onVoluntarioGuardado = {
-                                            pantallaActual = Pantalla.LISTA_VOLUNTARIOS
-                                        }
+                                            if (UserSession.isLoggedIn()) {
+                                                pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                                            } else {
+                                                pantallaActual = Pantalla.LOGIN
+                                            }
+                                        },
+                                        soloAdministrador = !UserSession.isLoggedIn()
                                     )
                                 }
 

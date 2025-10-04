@@ -15,7 +15,8 @@ import hn.unah.raindata.viewmodel.VoluntarioViewModel
 @Composable
 fun RegistroVoluntarioScreen(
     viewModel: VoluntarioViewModel = viewModel(),
-    onVoluntarioGuardado: () -> Unit = {}
+    onVoluntarioGuardado: () -> Unit = {},
+    soloAdministrador: Boolean = false  // NUEVO parámetro
 ) {
     var nombre by remember { mutableStateOf("") }
     var direccion by remember { mutableStateOf("") }
@@ -32,6 +33,13 @@ fun RegistroVoluntarioScreen(
 
     val tiposUsuario = listOf("Observador", "Voluntario", "Administrador")
 
+    // Si es solo administrador, forzar el valor
+    LaunchedEffect(soloAdministrador) {
+        if (soloAdministrador) {
+            tipoUsuario = "Administrador"
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -40,7 +48,7 @@ fun RegistroVoluntarioScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
-            text = "Registro de Voluntario",
+            text = if (soloAdministrador) "Registro de Administrador" else "Registro de Voluntario",
             style = MaterialTheme.typography.headlineMedium
         )
 
@@ -84,32 +92,45 @@ fun RegistroVoluntarioScreen(
                 )
 
                 // Campo de Tipo de Usuario con dropdown
-                ExposedDropdownMenuBox(
-                    expanded = expandedTipoUsuario,
-                    onExpandedChange = { expandedTipoUsuario = it }
-                ) {
+                if (soloAdministrador) {
+                    // Modo registro inicial - Solo puede crear Administrador
                     OutlinedTextField(
-                        value = tipoUsuario,
+                        value = "Administrador",
                         onValueChange = { },
                         readOnly = true,
                         label = { Text("Tipo de Usuario") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTipoUsuario) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth()
                     )
-                    ExposedDropdownMenu(
+                } else {
+                    // Modo normal - Puede seleccionar cualquier rol
+                    ExposedDropdownMenuBox(
                         expanded = expandedTipoUsuario,
-                        onDismissRequest = { expandedTipoUsuario = false }
+                        onExpandedChange = { expandedTipoUsuario = it }
                     ) {
-                        tiposUsuario.forEach { tipo ->
-                            DropdownMenuItem(
-                                text = { Text(tipo) },
-                                onClick = {
-                                    tipoUsuario = tipo
-                                    expandedTipoUsuario = false
-                                }
-                            )
+                        OutlinedTextField(
+                            value = tipoUsuario,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Tipo de Usuario") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTipoUsuario) },
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedTipoUsuario,
+                            onDismissRequest = { expandedTipoUsuario = false }
+                        ) {
+                            tiposUsuario.forEach { tipo ->
+                                DropdownMenuItem(
+                                    text = { Text(tipo) },
+                                    onClick = {
+                                        tipoUsuario = tipo
+                                        expandedTipoUsuario = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -183,17 +204,16 @@ fun RegistroVoluntarioScreen(
             }
         }
 
-        // Botones - Cancelar, Limpiar, Guardar
+        // Botones
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-
             Button(
                 onClick = {
                     if (nombre.isNotBlank() && direccion.isNotBlank() &&
-                        departamento.isNotBlank() && municipio.isNotBlank() && aldea.isNotBlank()) {
-
+                        departamento.isNotBlank() && municipio.isNotBlank() && aldea.isNotBlank()
+                    ) {
                         val voluntario = Voluntario(
                             nombre = nombre,
                             direccion = direccion,
@@ -229,7 +249,9 @@ fun RegistroVoluntarioScreen(
                     telefono = ""
                     email = ""
                     cedula = ""
-                    tipoUsuario = ""
+                    if (!soloAdministrador) {
+                        tipoUsuario = ""
+                    }
                     observaciones = ""
                 },
                 modifier = Modifier.weight(1f)
@@ -238,7 +260,7 @@ fun RegistroVoluntarioScreen(
             }
 
             OutlinedButton(
-                onClick = onVoluntarioGuardado, // Regresa a la pantalla anterior
+                onClick = onVoluntarioGuardado,
                 modifier = Modifier.weight(1f)
             ) {
                 Text("Cancelar")

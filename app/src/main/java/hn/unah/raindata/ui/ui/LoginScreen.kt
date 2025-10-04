@@ -22,7 +22,8 @@ import hn.unah.raindata.viewmodel.VoluntarioViewModel
 @Composable
 fun LoginScreen(
     voluntarioViewModel: VoluntarioViewModel = viewModel(),
-    onLoginSuccess: () -> Unit = {}
+    onLoginSuccess: () -> Unit = {},
+    onNavigateToRegistroAdmin: () -> Unit = {}
 ) {
     val voluntarios by voluntarioViewModel.todosLosVoluntarios.observeAsState(emptyList())
 
@@ -88,40 +89,71 @@ fun LoginScreen(
                     fontWeight = FontWeight.Bold
                 )
 
-                Text(
-                    text = "Selecciona tu usuario para continuar",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                // Selector de usuario
-                ExposedDropdownMenuBox(
-                    expanded = expandedUsuario,
-                    onExpandedChange = { expandedUsuario = it }
-                ) {
-                    OutlinedTextField(
-                        value = usuarioSeleccionado ?: "",
-                        onValueChange = { },
-                        readOnly = true,
-                        label = { Text("Seleccionar Usuario") },
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedUsuario)
-                        },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expandedUsuario,
-                        onDismissRequest = { expandedUsuario = false }
+                if (voluntarios.isEmpty()) {
+                    // No hay usuarios - Mostrar mensaje y botón para registrar admin
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        if (voluntarios.isEmpty()) {
-                            DropdownMenuItem(
-                                text = { Text("No hay usuarios registrados") },
-                                onClick = { }
-                            )
-                        } else {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+
+                        Text(
+                            text = "No hay usuarios registrados",
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Text(
+                            text = "Para comenzar, es necesario registrar un usuario Administrador",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            onClick = onNavigateToRegistroAdmin,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Registrar Usuario Administrador")
+                        }
+                    }
+                } else {
+                    // Hay usuarios - Mostrar selector normal
+                    Text(
+                        text = "Selecciona tu usuario para continuar",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Selector de usuario
+                    ExposedDropdownMenuBox(
+                        expanded = expandedUsuario,
+                        onExpandedChange = { expandedUsuario = it }
+                    ) {
+                        OutlinedTextField(
+                            value = usuarioSeleccionado ?: "",
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Seleccionar Usuario") },
+                            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedUsuario)
+                            },
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedUsuario,
+                            onDismissRequest = { expandedUsuario = false }
+                        ) {
                             voluntarios.forEach { voluntario ->
                                 DropdownMenuItem(
                                     text = {
@@ -160,21 +192,21 @@ fun LoginScreen(
                             }
                         }
                     }
-                }
 
-                // Mensaje de error
-                if (showError) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Text(
-                            text = errorMessage,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.padding(12.dp)
-                        )
+                    // Mensaje de error
+                    if (showError) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        ) {
+                            Text(
+                                text = errorMessage,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
                     }
                 }
 
