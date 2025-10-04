@@ -12,14 +12,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import hn.unah.raindata.data.session.UserSession
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToVoluntarios: () -> Unit = {},
     onNavigateToPluviometros: () -> Unit = {},
-    onNavigateToDatosMeteorologicos: () -> Unit = {}
+    onNavigateToDatosMeteorologicos: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
+    val currentUser = UserSession.getCurrentUser()
+    val userRole = UserSession.getUserRole() ?: "Sin rol"
+
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -27,7 +34,7 @@ fun HomeScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header de bienvenida
+        // Header de bienvenida con información del usuario
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
@@ -56,6 +63,34 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     textAlign = TextAlign.Center
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Información del usuario
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = currentUser?.nombre ?: "Usuario",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = "Rol: $userRole",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
             }
         }
 
@@ -66,52 +101,78 @@ fun HomeScreen(
             modifier = Modifier.padding(vertical = 8.dp)
         )
 
-        // Gestión de Voluntarios (Funcional)
-        MenuCard(
-            title = "Gestión de Voluntarios",
-            description = "Administrar voluntarios y observadores del sistema",
-            icon = Icons.Default.Person,
-            isEnabled = true,
-            onClick = onNavigateToVoluntarios
-        )
+        // Gestión de Voluntarios (Solo Administrador y Observador pueden ver)
+        if (UserSession.canViewVoluntarios()) {
+            MenuCard(
+                title = "Gestión de Voluntarios",
+                description = "Administrar voluntarios y observadores del sistema",
+                icon = Icons.Default.Person,
+                isEnabled = true,
+                onClick = onNavigateToVoluntarios,
+                requiresRole = if (UserSession.canCreateVoluntarios()) null else "Solo visualización"
+            )
+        }
 
-        // Gestión de Pluviómetros (Funcional)
-        MenuCard(
-            title = "Gestión de Pluviómetros",
-            description = "Registrar y administrar pluviómetros en el sistema",
-            icon = Icons.Default.LocationOn,
-            isEnabled = true,
-            onClick = onNavigateToPluviometros
-        )
+        // Gestión de Pluviómetros (Administrador, Voluntario y Observador)
+        if (UserSession.canViewPluviometros()) {
+            MenuCard(
+                title = "Gestión de Pluviómetros",
+                description = "Registrar y administrar pluviómetros en el sistema",
+                icon = Icons.Default.LocationOn,
+                isEnabled = true,
+                onClick = onNavigateToPluviometros,
+                requiresRole = if (!UserSession.canCreatePluviometros()) "Solo visualización" else null
+            )
+        }
 
-        // Datos Meteorológicos (NUEVO - Funcional)
-        MenuCard(
-            title = "Datos Meteorológicos",
-            description = "Registrar datos meteorológicos y condiciones climáticas",
-            icon = Icons.Default.CloudQueue,
-            isEnabled = true,
-            onClick = onNavigateToDatosMeteorologicos
-        )
+        // Datos Meteorológicos (Solo Administrador y Observador)
+        if (UserSession.canViewDatosMeteorologicos()) {
+            MenuCard(
+                title = "Datos Meteorológicos",
+                description = "Registrar datos meteorológicos y condiciones climáticas",
+                icon = Icons.Default.CloudQueue,
+                isEnabled = true,
+                onClick = onNavigateToDatosMeteorologicos,
+                requiresRole = if (!UserSession.canCreateDatosMeteorologicos()) "Solo visualización" else null
+            )
+        }
 
-        // Registro Pluviométrico
+        // Datos Pluviométricos (Próximamente)
         MenuCard(
             title = "Datos Pluviométricos",
             description = "Registrar datos de precipitación y mediciones de lluvia",
             icon = Icons.Default.WaterDrop,
             isEnabled = false,
-            onClick = { /* Sin función por ahora */ }
+            onClick = { }
         )
 
-        // Reportes y Estadísticas
-        MenuCard(
-            title = "Reportes y Estadísticas",
-            description = "Generar reportes y visualizar estadísticas del sistema",
-            icon = Icons.Default.Assessment,
-            isEnabled = false,
-            onClick = { /* Sin función por ahora */ }
-        )
+        // Reportes y Estadísticas (Solo Administrador y Observador)
+        if (UserSession.canViewReports()) {
+            MenuCard(
+                title = "Reportes y Estadísticas",
+                description = "Generar reportes y visualizar estadísticas del sistema",
+                icon = Icons.Default.Assessment,
+                isEnabled = false,
+                onClick = { }
+            )
+        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Botón de cerrar sesión
+        OutlinedButton(
+            onClick = { showLogoutDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.error
+            )
+        ) {
+            Icon(Icons.Default.ExitToApp, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Cerrar Sesión")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Información adicional
         Card(
@@ -133,19 +194,50 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Información",
+                        text = "Información sobre tu acceso",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Actualmente están disponibles la gestión de voluntarios, pluviómetros y datos meteorológicos. Los módulos de datos pluviométricos y reportes estarán disponibles próximamente.",
+                    text = when(userRole) {
+                        "Administrador" -> "Tienes acceso completo a todas las funcionalidades del sistema."
+                        "Voluntario" -> "Puedes registrar, editar y visualizar pluviómetros."
+                        "Observador" -> "Puedes visualizar información y estadísticas del sistema."
+                        else -> "Tu rol actual no tiene permisos asignados."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
+    }
+
+    // Diálogo de confirmación de cierre de sesión
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            icon = { Icon(Icons.Default.ExitToApp, contentDescription = null) },
+            title = { Text("Cerrar Sesión") },
+            text = { Text("¿Estás seguro de que deseas cerrar sesión?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        UserSession.logout()
+                        showLogoutDialog = false
+                        onLogout()
+                    }
+                ) {
+                    Text("Sí, cerrar sesión")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 
@@ -156,7 +248,8 @@ fun MenuCard(
     description: String,
     icon: ImageVector,
     isEnabled: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    requiresRole: String? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -228,6 +321,19 @@ fun MenuCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    } else if (requiresRole != null) {
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        ) {
+                            Text(
+                                text = requiresRole,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
                     }

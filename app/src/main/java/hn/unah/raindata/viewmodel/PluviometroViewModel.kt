@@ -30,6 +30,11 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
         repository.guardarPluviometro(pluviometro)
         cargarPluviometros()
     }
+    fun eliminarPluviometro(id: String) = viewModelScope.launch {
+        repository.eliminarPluviometro(id)
+        cargarPluviometros()
+    }
+
 
     fun actualizarPluviometro(pluviometro: Pluviometro) = viewModelScope.launch {
         repository.actualizarPluviometro(pluviometro)

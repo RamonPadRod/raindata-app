@@ -46,4 +46,8 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         val voluntarios = repository.obtenerVoluntarios()
         _voluntarios.value = voluntarios
     }
+    fun eliminarVoluntario(id: String) = viewModelScope.launch {
+        repository.eliminarVoluntario(id)
+        cargarVoluntarios()
+    }
 }
