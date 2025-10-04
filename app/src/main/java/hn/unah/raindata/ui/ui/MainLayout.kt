@@ -269,6 +269,6 @@ fun DrawerMenuItem(
         },
         selected = isSelected && isEnabled,
         onClick = if (isEnabled) onClick else { {} },
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+        modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp)
     )
 }
