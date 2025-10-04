@@ -19,6 +19,7 @@ fun MainLayout(
     onNavigateToHome: () -> Unit,
     onNavigateToVoluntarios: () -> Unit,
     onNavigateToPluviometros: () -> Unit,
+    onNavigateToDatosMeteorologicos: () -> Unit,
     content: @Composable () -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -41,6 +42,10 @@ fun MainLayout(
                     onNavigateToPluviometros()
                     scope.launch { drawerState.close() }
                 },
+                onNavigateToDatosMeteorologicos = {
+                    onNavigateToDatosMeteorologicos()
+                    scope.launch { drawerState.close() }
+                },
                 onCloseDrawer = {
                     scope.launch { drawerState.close() }
                 }
@@ -58,6 +63,8 @@ fun MainLayout(
                                 "REGISTRO_VOLUNTARIO" -> "Registro de Voluntario"
                                 "PLUVIOMETROS" -> "Gestión de Pluviómetros"
                                 "REGISTRO_PLUVIOMETRO" -> "Registro de Pluviómetro"
+                                "DATOS_METEOROLOGICOS" -> "Datos Meteorológicos"
+                                "REGISTRO_DATO_METEOROLOGICO" -> "Registro de Dato Meteorológico"
                                 "DATOS_PLUVIOMETRICOS" -> "Datos Pluviométricos"
                                 "DATOS_CLIMATICOS" -> "Datos Climáticos"
                                 else -> "DatosLluvia"
@@ -104,6 +111,7 @@ fun DrawerContent(
     onNavigateToHome: () -> Unit,
     onNavigateToVoluntarios: () -> Unit,
     onNavigateToPluviometros: () -> Unit,
+    onNavigateToDatosMeteorologicos: () -> Unit,
     onCloseDrawer: () -> Unit
 ) {
     ModalDrawerSheet(
@@ -171,6 +179,14 @@ fun DrawerContent(
             )
 
             DrawerMenuItem(
+                icon = Icons.Default.CloudQueue,
+                title = "Datos Meteorológicos",
+                isSelected = currentScreen == "DATOS_METEOROLOGICOS" || currentScreen == "REGISTRO_DATO_METEOROLOGICO",
+                isEnabled = true,
+                onClick = onNavigateToDatosMeteorologicos
+            )
+
+            DrawerMenuItem(
                 icon = Icons.Default.WaterDrop,
                 title = "Datos Pluviométricos",
                 isSelected = currentScreen == "DATOS_PLUVIOMETRICOS",
@@ -179,9 +195,9 @@ fun DrawerContent(
             )
 
             DrawerMenuItem(
-                icon = Icons.Default.Thermostat,
-                title = "Datos Climáticos",
-                isSelected = currentScreen == "DATOS_CLIMATICOS",
+                icon = Icons.Default.Assessment,
+                title = "Reportes y Estadísticas",
+                isSelected = false,
                 isEnabled = false,
                 onClick = { /* Sin función por ahora */ }
             )
