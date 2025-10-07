@@ -7,6 +7,23 @@ import hn.unah.raindata.data.database.entities.Pluviometro
 
 class PluviometroDao(private val dbHelper: AppDatabase) {
 
+    fun generarCodigoAutomatico(): String {
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT MAX(CAST(SUBSTR(numero_registro, 5) AS INTEGER)) as max_num FROM pluviometros",
+            null
+        )
+
+        var nuevoNumero = 1
+        if (cursor.moveToFirst()) {
+            val maxNum = cursor.getInt(cursor.getColumnIndexOrThrow("max_num"))
+            nuevoNumero = maxNum + 1
+        }
+        cursor.close()
+
+        return String.format("PLU-%04d", nuevoNumero)
+    }
+
     fun insertar(pluviometro: Pluviometro): Long {
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {

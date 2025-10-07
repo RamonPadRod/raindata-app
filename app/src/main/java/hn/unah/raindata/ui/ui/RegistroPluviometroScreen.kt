@@ -12,7 +12,6 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -24,6 +23,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import hn.unah.raindata.data.database.entities.Pluviometro
 import hn.unah.raindata.data.database.entities.Voluntario
+import hn.unah.raindata.data.utils.DepartamentosHonduras
 import hn.unah.raindata.viewmodel.PluviometroViewModel
 import hn.unah.raindata.viewmodel.VoluntarioViewModel
 
@@ -35,10 +35,15 @@ fun RegistroPluviometroScreen(
     onPluviometroGuardado: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val voluntarios by voluntarioViewModel.todosLosVoluntarios.observeAsState(emptyList())
+    val todosLosVoluntarios by voluntarioViewModel.todosLosVoluntarios.observeAsState(emptyList())
+    val codigoGenerado by pluviometroViewModel.codigoGenerado.observeAsState("")
+
+    // Filtrar solo voluntarios con tipo_usuario = "Voluntario"
+    val voluntariosElegibles = todosLosVoluntarios.filter {
+        it.tipo_usuario?.equals("Voluntario", ignoreCase = true) == true
+    }
 
     // Estados del formulario
-    var numeroRegistro by remember { mutableStateOf("") }
     var direccion by remember { mutableStateOf("") }
     var departamento by remember { mutableStateOf("") }
     var municipio by remember { mutableStateOf("") }
@@ -46,17 +51,42 @@ fun RegistroPluviometroScreen(
     var caserioBarrioColonia by remember { mutableStateOf("") }
     var voluntarioSeleccionado by remember { mutableStateOf<Voluntario?>(null) }
     var expandedVoluntario by remember { mutableStateOf(false) }
+    var expandedDepartamento by remember { mutableStateOf(false) }
+    var expandedMunicipio by remember { mutableStateOf(false) }
     var observaciones by remember { mutableStateOf("") }
+
+    // Estados de error
+    var errorDireccion by remember { mutableStateOf<String?>(null) }
+    var errorCoordenadas by remember { mutableStateOf<String?>(null) }
+    var errorAldea by remember { mutableStateOf<String?>(null) }
+    var errorBarrio by remember { mutableStateOf<String?>(null) }
+    var errorVoluntario by remember { mutableStateOf<String?>(null) }
+    var errorDepartamento by remember { mutableStateOf<String?>(null) }
+    var errorMunicipio by remember { mutableStateOf<String?>(null) }
 
     // Estados del mapa
     var ubicacionSeleccionada by remember { mutableStateOf<LatLng?>(null) }
     var mostrarMapa by remember { mutableStateOf(false) }
     var permisoUbicacionConcedido by remember { mutableStateOf(false) }
 
+    // Lista de municipios según departamento seleccionado
+    val municipiosDisponibles = remember(departamento) {
+        DepartamentosHonduras.obtenerMunicipios(departamento)
+    }
+
     // Ubicación predeterminada (Tegucigalpa)
     val ubicacionPredeterminada = LatLng(14.0723, -87.1921)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(ubicacionSeleccionada ?: ubicacionPredeterminada, 15f)
+    }
+
+    // Generar código al inicio
+    LaunchedEffect(Unit) {
+        pluviometroViewModel.generarCodigoAutomatico()
+        permisoUbicacionConcedido = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     // Launcher para solicitar permisos
@@ -65,7 +95,6 @@ fun RegistroPluviometroScreen(
     ) { isGranted ->
         permisoUbicacionConcedido = isGranted
         if (isGranted) {
-            // Obtener ubicación actual
             val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
             try {
                 fusedLocationClient.lastLocation.addOnSuccessListener { location ->
@@ -82,13 +111,87 @@ fun RegistroPluviometroScreen(
         }
     }
 
-    // Verificar permisos al inicio
-    LaunchedEffect(Unit) {
-        permisoUbicacionConcedido = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
+    // FUNCIONES DE VALIDACIÓN
+    fun validarDireccion(valor: String): String? {
+        if (valor.isBlank()) return "La dirección es obligatoria"
+        val regex = Regex("^[a-zA-Z0-9\\s.,#/-]+$")
+        return if (!regex.matches(valor)) {
+            "Solo se permiten letras, números, espacios y los caracteres: . , # / -"
+        } else null
     }
+
+    fun validarCoordenadas(lat: Double?, lng: Double?): String? {
+        if (lat == null || lng == null) return "Debe seleccionar una ubicación en el mapa"
+        if (lat !in 13.0..16.0) return "Latitud fuera del rango de Honduras (13° a 16°)"
+        if (lng !in -89.0..-83.0) return "Longitud fuera del rango de Honduras (-89° a -83°)"
+        return null
+    }
+
+    fun validarLongitudTexto(valor: String, campo: String, maxLongitud: Int = 50): String? {
+        if (valor.isBlank()) return "$campo es obligatorio"
+        if (valor.length > maxLongitud) return "$campo no puede exceder $maxLongitud caracteres"
+        return null
+    }
+
+    // Validar en tiempo real
+    LaunchedEffect(direccion) {
+        errorDireccion = validarDireccion(direccion)
+    }
+
+    LaunchedEffect(ubicacionSeleccionada) {
+        errorCoordenadas = validarCoordenadas(ubicacionSeleccionada?.latitude, ubicacionSeleccionada?.longitude)
+    }
+
+    LaunchedEffect(aldea) {
+        errorAldea = validarLongitudTexto(aldea, "Aldea")
+    }
+
+    LaunchedEffect(caserioBarrioColonia) {
+        if (caserioBarrioColonia.isNotBlank()) {
+            errorBarrio = if (caserioBarrioColonia.length > 50) {
+                "Caserío/Barrio/Colonia no puede exceder 50 caracteres"
+            } else null
+        } else {
+            errorBarrio = null
+        }
+    }
+
+    LaunchedEffect(voluntarioSeleccionado) {
+        errorVoluntario = if (voluntarioSeleccionado == null) {
+            "Debe seleccionar un voluntario responsable"
+        } else null
+    }
+
+    LaunchedEffect(departamento) {
+        errorDepartamento = if (departamento.isBlank()) {
+            "Debe seleccionar un departamento"
+        } else null
+        // Resetear municipio si cambia departamento
+        if (municipio.isNotEmpty() && !municipiosDisponibles.contains(municipio)) {
+            municipio = ""
+        }
+    }
+
+    LaunchedEffect(municipio) {
+        errorMunicipio = if (municipio.isBlank()) {
+            "Debe seleccionar un municipio"
+        } else null
+    }
+
+    // Verificar si hay errores
+    val hayErrores = errorDireccion != null ||
+            errorCoordenadas != null ||
+            errorAldea != null ||
+            errorBarrio != null ||
+            errorVoluntario != null ||
+            errorDepartamento != null ||
+            errorMunicipio != null ||
+            direccion.isBlank() ||
+            departamento.isBlank() ||
+            municipio.isBlank() ||
+            aldea.isBlank() ||
+            voluntarioSeleccionado == null ||
+            ubicacionSeleccionada == null
 
     Column(
         modifier = Modifier
@@ -113,11 +216,13 @@ fun RegistroPluviometroScreen(
                     style = MaterialTheme.typography.titleMedium
                 )
 
+                // Código autogenerado (solo lectura)
                 OutlinedTextField(
-                    value = numeroRegistro,
-                    onValueChange = { numeroRegistro = it },
-                    label = { Text("Número de Registro *") },
-                    placeholder = { Text("Ej: PLU-001") },
+                    value = codigoGenerado,
+                    onValueChange = { },
+                    label = { Text("Código del Pluviómetro") },
+                    readOnly = true,
+                    enabled = false,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -132,6 +237,15 @@ fun RegistroPluviometroScreen(
                         readOnly = true,
                         label = { Text("Responsable del Pluviómetro *") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVoluntario) },
+                        isError = errorVoluntario != null,
+                        supportingText = {
+                            if (errorVoluntario != null) {
+                                Text(
+                                    text = errorVoluntario!!,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
                         modifier = Modifier
                             .menuAnchor()
                             .fillMaxWidth()
@@ -140,13 +254,13 @@ fun RegistroPluviometroScreen(
                         expanded = expandedVoluntario,
                         onDismissRequest = { expandedVoluntario = false }
                     ) {
-                        if (voluntarios.isEmpty()) {
+                        if (voluntariosElegibles.isEmpty()) {
                             DropdownMenuItem(
-                                text = { Text("No hay voluntarios registrados") },
+                                text = { Text("No hay voluntarios con tipo 'Voluntario'") },
                                 onClick = { }
                             )
                         } else {
-                            voluntarios.forEach { voluntario ->
+                            voluntariosElegibles.forEach { voluntario ->
                                 DropdownMenuItem(
                                     text = {
                                         Column {
@@ -240,38 +354,177 @@ fun RegistroPluviometroScreen(
                     }
                 }
 
+                // Mensaje de error de coordenadas
+                if (errorCoordenadas != null) {
+                    Text(
+                        text = errorCoordenadas!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+
                 OutlinedTextField(
                     value = direccion,
                     onValueChange = { direccion = it },
                     label = { Text("Dirección *") },
+                    isError = errorDireccion != null,
+                    supportingText = {
+                        if (errorDireccion != null) {
+                            Text(
+                                text = errorDireccion!!,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
-                    value = departamento,
-                    onValueChange = { departamento = it },
-                    label = { Text("Departamento *") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Selector de Departamento
+                ExposedDropdownMenuBox(
+                    expanded = expandedDepartamento,
+                    onExpandedChange = { expandedDepartamento = it }
+                ) {
+                    OutlinedTextField(
+                        value = departamento,
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Departamento *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDepartamento) },
+                        isError = errorDepartamento != null,
+                        supportingText = {
+                            if (errorDepartamento != null) {
+                                Text(
+                                    text = errorDepartamento!!,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedDepartamento,
+                        onDismissRequest = { expandedDepartamento = false }
+                    ) {
+                        DepartamentosHonduras.departamentos.forEach { depto ->
+                            DropdownMenuItem(
+                                text = { Text(depto) },
+                                onClick = {
+                                    departamento = depto
+                                    expandedDepartamento = false
+                                }
+                            )
+                        }
+                    }
+                }
 
-                OutlinedTextField(
-                    value = municipio,
-                    onValueChange = { municipio = it },
-                    label = { Text("Municipio *") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Selector de Municipio
+                ExposedDropdownMenuBox(
+                    expanded = expandedMunicipio,
+                    onExpandedChange = { expandedMunicipio = it }
+                ) {
+                    OutlinedTextField(
+                        value = municipio,
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Municipio *") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMunicipio) },
+                        enabled = departamento.isNotBlank(),
+                        isError = errorMunicipio != null,
+                        supportingText = {
+                            if (errorMunicipio != null) {
+                                Text(
+                                    text = errorMunicipio!!,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else if (departamento.isBlank()) {
+                                Text("Primero seleccione un departamento")
+                            }
+                        },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedMunicipio,
+                        onDismissRequest = { expandedMunicipio = false }
+                    ) {
+                        if (municipiosDisponibles.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("Seleccione primero un departamento") },
+                                onClick = { }
+                            )
+                        } else {
+                            municipiosDisponibles.forEach { muni ->
+                                DropdownMenuItem(
+                                    text = { Text(muni) },
+                                    onClick = {
+                                        municipio = muni
+                                        expandedMunicipio = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
 
                 OutlinedTextField(
                     value = aldea,
-                    onValueChange = { aldea = it },
-                    label = { Text("Aldea *") },
+                    onValueChange = {
+                        if (it.length <= 50) aldea = it
+                    },
+                    label = { Text("Aldea * (máx. 50 caracteres)") },
+                    isError = errorAldea != null,
+                    supportingText = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            if (errorAldea != null) {
+                                Text(
+                                    text = errorAldea!!,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                            Text(
+                                text = "${aldea.length}/50",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 OutlinedTextField(
                     value = caserioBarrioColonia,
-                    onValueChange = { caserioBarrioColonia = it },
-                    label = { Text("Caserío/Barrio/Colonia") },
+                    onValueChange = {
+                        if (it.length <= 50) caserioBarrioColonia = it
+                    },
+                    label = { Text("Caserío/Barrio/Colonia (máx. 50 caracteres)") },
+                    isError = errorBarrio != null,
+                    supportingText = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            if (errorBarrio != null) {
+                                Text(
+                                    text = errorBarrio!!,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                            Text(
+                                text = "${caserioBarrioColonia.length}/50",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -303,47 +556,31 @@ fun RegistroPluviometroScreen(
         ) {
             Button(
                 onClick = {
-                    if (numeroRegistro.isNotBlank() &&
-                        direccion.isNotBlank() &&
-                        departamento.isNotBlank() &&
-                        municipio.isNotBlank() &&
-                        aldea.isNotBlank() &&
-                        voluntarioSeleccionado != null &&
-                        ubicacionSeleccionada != null) {
+                    val pluviometro = Pluviometro(
+                        numero_registro = codigoGenerado,
+                        latitud = ubicacionSeleccionada!!.latitude,
+                        longitud = ubicacionSeleccionada!!.longitude,
+                        direccion = direccion,
+                        departamento = departamento,
+                        municipio = municipio,
+                        aldea = aldea,
+                        caserio_barrio_colonia = caserioBarrioColonia.ifBlank { null },
+                        responsable_id = voluntarioSeleccionado!!.id,
+                        responsable_nombre = voluntarioSeleccionado!!.nombre,
+                        observaciones = observaciones.ifBlank { null }
+                    )
 
-                        val pluviometro = Pluviometro(
-                            numero_registro = numeroRegistro,
-                            latitud = ubicacionSeleccionada!!.latitude,
-                            longitud = ubicacionSeleccionada!!.longitude,
-                            direccion = direccion,
-                            departamento = departamento,
-                            municipio = municipio,
-                            aldea = aldea,
-                            caserio_barrio_colonia = caserioBarrioColonia.ifBlank { null },
-                            responsable_id = voluntarioSeleccionado!!.id,
-                            responsable_nombre = voluntarioSeleccionado!!.nombre,
-                            observaciones = observaciones.ifBlank { null }
-                        )
-
-                        pluviometroViewModel.guardarPluviometro(pluviometro)
-                        onPluviometroGuardado()
-                    }
+                    pluviometroViewModel.guardarPluviometro(pluviometro)
+                    onPluviometroGuardado()
                 },
                 modifier = Modifier.weight(1f),
-                enabled = numeroRegistro.isNotBlank() &&
-                        direccion.isNotBlank() &&
-                        departamento.isNotBlank() &&
-                        municipio.isNotBlank() &&
-                        aldea.isNotBlank() &&
-                        voluntarioSeleccionado != null &&
-                        ubicacionSeleccionada != null
+                enabled = !hayErrores
             ) {
                 Text("Guardar")
             }
 
             OutlinedButton(
                 onClick = {
-                    numeroRegistro = ""
                     direccion = ""
                     departamento = ""
                     municipio = ""
@@ -352,6 +589,7 @@ fun RegistroPluviometroScreen(
                     voluntarioSeleccionado = null
                     observaciones = ""
                     ubicacionSeleccionada = null
+                    pluviometroViewModel.generarCodigoAutomatico()
                 },
                 modifier = Modifier.weight(1f)
             ) {
@@ -366,13 +604,38 @@ fun RegistroPluviometroScreen(
             }
         }
 
-        if (ubicacionSeleccionada == null) {
-            Text(
-                text = "⚠️ Debes seleccionar una ubicación en el mapa",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(top = 8.dp)
-            )
+        // Resumen de errores
+        if (hayErrores) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = "⚠️ Corrija los siguientes errores:",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    listOfNotNull(
+                        errorDireccion,
+                        errorCoordenadas,
+                        errorAldea,
+                        errorBarrio,
+                        errorVoluntario,
+                        errorDepartamento,
+                        errorMunicipio
+                    ).forEach { error ->
+                        Text(
+                            text = "• $error",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
         }
     }
 }

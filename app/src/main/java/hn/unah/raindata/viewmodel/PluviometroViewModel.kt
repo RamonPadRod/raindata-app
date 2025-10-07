@@ -19,6 +19,9 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
     private val _pluviometroSeleccionado = MutableLiveData<Pluviometro?>()
     val pluviometroSeleccionado: LiveData<Pluviometro?> = _pluviometroSeleccionado
 
+    private val _codigoGenerado = MutableLiveData<String>()
+    val codigoGenerado: LiveData<String> = _codigoGenerado
+
     init {
         val database = AppDatabase.getDatabase(application)
         val pluviometroDao = database.getPluviometroDao()
@@ -26,15 +29,15 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
         cargarPluviometros()
     }
 
+    fun generarCodigoAutomatico() = viewModelScope.launch {
+        val codigo = repository.generarCodigoAutomatico()
+        _codigoGenerado.value = codigo
+    }
+
     fun guardarPluviometro(pluviometro: Pluviometro) = viewModelScope.launch {
         repository.guardarPluviometro(pluviometro)
         cargarPluviometros()
     }
-    fun eliminarPluviometro(id: String) = viewModelScope.launch {
-        repository.eliminarPluviometro(id)
-        cargarPluviometros()
-    }
-
 
     fun actualizarPluviometro(pluviometro: Pluviometro) = viewModelScope.launch {
         repository.actualizarPluviometro(pluviometro)
@@ -58,6 +61,12 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
     fun obtenerPluviometrosPorResponsable(responsableId: String) = viewModelScope.launch {
         val pluviometros = repository.obtenerPluviometrosPorResponsable(responsableId)
         _pluviometros.value = pluviometros
+    }
+
+    // AGREGAR ESTA FUNCIÓN
+    fun eliminarPluviometro(id: String) = viewModelScope.launch {
+        repository.eliminarPluviometro(id)
+        cargarPluviometros()
     }
 
     private fun cargarPluviometros() = viewModelScope.launch {
