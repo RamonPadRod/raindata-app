@@ -97,6 +97,22 @@ class DatoMeteorologicoDao(private val dbHelper: AppDatabase) {
         return datos
     }
 
+    // ✅ NUEVO: Verificar si ya existe un registro para un pluviómetro en una fecha
+    fun existeRegistroEnFecha(pluviometroId: String, fecha: String): Boolean {
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT COUNT(*) FROM datos_meteorologicos WHERE pluviometro_id = ? AND fecha = ?",
+            arrayOf(pluviometroId, fecha)
+        )
+
+        var existe = false
+        if (cursor.moveToFirst()) {
+            existe = cursor.getInt(0) > 0
+        }
+        cursor.close()
+        return existe
+    }
+
     fun actualizar(dato: DatoMeteorologico): Int {
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {
