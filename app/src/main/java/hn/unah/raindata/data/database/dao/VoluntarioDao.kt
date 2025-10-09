@@ -50,6 +50,24 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         return voluntarios
     }
 
+    // ✅ NUEVO: Obtener solo voluntarios con tipo_usuario = "Voluntario"
+    fun obtenerVoluntariosActivos(): List<Voluntario> {
+        val voluntarios = mutableListOf<Voluntario>()
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT * FROM voluntarios WHERE activo = 1 AND tipo_usuario = 'Voluntario' ORDER BY nombre",
+            null
+        )
+
+        with(cursor) {
+            while (moveToNext()) {
+                voluntarios.add(cursorToVoluntario(this))
+            }
+        }
+        cursor.close()
+        return voluntarios
+    }
+
     fun obtenerTodos(): List<Voluntario> {
         val voluntarios = mutableListOf<Voluntario>()
         val db = dbHelper.readableDatabase
@@ -164,7 +182,6 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             tipo_usuario = try {
                 cursor.getString(cursor.getColumnIndexOrThrow("tipo_usuario"))
             } catch (e: Exception) {
-                // Fallback a ocupacion si tipo_usuario no existe
                 try {
                     cursor.getString(cursor.getColumnIndexOrThrow("ocupacion"))
                 } catch (e2: Exception) {

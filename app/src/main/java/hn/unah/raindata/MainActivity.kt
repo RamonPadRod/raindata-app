@@ -160,6 +160,10 @@ class MainActivity : ComponentActivity() {
                                     RegistroDatoMeteorologicoScreen(
                                         onDatoGuardado = {
                                             pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                                        },
+                                        // ✅ AGREGADO: Navegación al registro de pluviómetros
+                                        onNavegarARegistroPluviometro = {
+                                            pantallaActual = Pantalla.REGISTRO_PLUVIOMETRO
                                         }
                                     )
                                 }
