@@ -50,7 +50,6 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         return voluntarios
     }
 
-    // ✅ NUEVO: Obtener solo voluntarios con tipo_usuario = "Voluntario"
     fun obtenerVoluntariosActivos(): List<Voluntario> {
         val voluntarios = mutableListOf<Voluntario>()
         val db = dbHelper.readableDatabase
@@ -90,6 +89,38 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         val cursor: Cursor = db.rawQuery(
             "SELECT * FROM voluntarios WHERE id = ? LIMIT 1",
             arrayOf(id)
+        )
+
+        var voluntario: Voluntario? = null
+        if (cursor.moveToFirst()) {
+            voluntario = cursorToVoluntario(cursor)
+        }
+        cursor.close()
+        return voluntario
+    }
+
+    // ✅ NUEVO: Verificar si un DNI ya existe
+    fun existeDNI(dni: String): Boolean {
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT COUNT(*) FROM voluntarios WHERE cedula = ? AND activo = 1",
+            arrayOf(dni)
+        )
+
+        var existe = false
+        if (cursor.moveToFirst()) {
+            existe = cursor.getInt(0) > 0
+        }
+        cursor.close()
+        return existe
+    }
+
+    // ✅ NUEVO: Obtener voluntario por DNI (para login)
+    fun obtenerPorDNI(dni: String): Voluntario? {
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT * FROM voluntarios WHERE cedula = ? AND activo = 1 LIMIT 1",
+            arrayOf(dni)
         )
 
         var voluntario: Voluntario? = null

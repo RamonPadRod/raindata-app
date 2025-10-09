@@ -11,30 +11,36 @@ class VoluntarioRepository(private val voluntarioDao: VoluntarioDao) {
         voluntarioDao.insertar(voluntario)
     }
 
+    suspend fun actualizarVoluntario(voluntario: Voluntario) = withContext(Dispatchers.IO) {
+        voluntarioDao.actualizar(voluntario)
+    }
+
+    suspend fun eliminarVoluntario(id: String) = withContext(Dispatchers.IO) {
+        voluntarioDao.eliminar(id)
+    }
+
     suspend fun obtenerVoluntarios(): List<Voluntario> = withContext(Dispatchers.IO) {
         voluntarioDao.obtenerActivos()
     }
 
-    suspend fun obtenerVoluntarioPorId(id: String): Voluntario? = withContext(Dispatchers.IO) {
-        voluntarioDao.obtenerPorId(id)
-    }
-
-    suspend fun actualizarVoluntario(voluntario: Voluntario) = withContext(Dispatchers.IO) {
-        val voluntarioActualizado = voluntario.copy(
-            fecha_modificacion = System.currentTimeMillis()
-        )
-        voluntarioDao.actualizar(voluntarioActualizado)
+    suspend fun obtenerTodos(): List<Voluntario> = withContext(Dispatchers.IO) {
+        voluntarioDao.obtenerTodos()
     }
 
     suspend fun buscarVoluntarios(termino: String): List<Voluntario> = withContext(Dispatchers.IO) {
         voluntarioDao.buscar(termino)
     }
 
-    suspend fun contarVoluntarios(): Int = withContext(Dispatchers.IO) {
-        voluntarioDao.contarActivos()
+    suspend fun obtenerPorId(id: String): Voluntario? = withContext(Dispatchers.IO) {
+        voluntarioDao.obtenerPorId(id)
     }
 
-    suspend fun eliminarVoluntario(id: String) = withContext(Dispatchers.IO) {
-        voluntarioDao.eliminar(id)
+    // ✅ NUEVOS MÉTODOS
+    suspend fun existeDNI(dni: String): Boolean = withContext(Dispatchers.IO) {
+        voluntarioDao.existeDNI(dni)
+    }
+
+    suspend fun obtenerPorDNI(dni: String): Voluntario? = withContext(Dispatchers.IO) {
+        voluntarioDao.obtenerPorDNI(dni)
     }
 }
