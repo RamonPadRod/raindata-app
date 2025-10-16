@@ -10,7 +10,7 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
     fun insertar(voluntario: Voluntario): Long {
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {
-            put("id", voluntario.id)
+            put("firebase_uid", voluntario.firebase_uid)
             put("nombre", voluntario.nombre)
             put("direccion", voluntario.direccion)
             put("departamento", voluntario.departamento)
@@ -23,6 +23,7 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             put("fecha_nacimiento", voluntario.fecha_nacimiento)
             put("genero", voluntario.genero)
             put("tipo_usuario", voluntario.tipo_usuario)
+            put("estado_aprobacion", voluntario.estado_aprobacion)
             put("experiencia_años", voluntario.experiencia_años)
             put("observaciones", voluntario.observaciones)
             put("activo", if (voluntario.activo) 1 else 0)
@@ -84,11 +85,11 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         return voluntarios
     }
 
-    fun obtenerPorId(id: String): Voluntario? {
+    fun obtenerPorId(id: Long): Voluntario? {
         val db = dbHelper.readableDatabase
         val cursor: Cursor = db.rawQuery(
             "SELECT * FROM voluntarios WHERE id = ? LIMIT 1",
-            arrayOf(id)
+            arrayOf(id.toString())
         )
 
         var voluntario: Voluntario? = null
@@ -173,12 +174,12 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             put("fecha_modificacion", System.currentTimeMillis())
         }
 
-        return db.update("voluntarios", values, "id = ?", arrayOf(voluntario.id))
+        return db.update("voluntarios", values, "id = ?", arrayOf(voluntario.id.toString()))
     }
 
-    fun eliminar(id: String): Int {
+    fun eliminar(id: Long): Int {
         val db = dbHelper.writableDatabase
-        return db.delete("voluntarios", "id = ?", arrayOf(id))
+        return db.delete("voluntarios", "id = ?", arrayOf(id.toString()))
     }
 
     fun contarActivos(): Int {
@@ -198,7 +199,12 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
 
     private fun cursorToVoluntario(cursor: Cursor): Voluntario {
         return Voluntario(
-            id = cursor.getString(cursor.getColumnIndexOrThrow("id")),
+            id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
+            firebase_uid = try {
+                cursor.getString(cursor.getColumnIndexOrThrow("firebase_uid")) ?: ""
+            } catch (e: Exception) {
+                ""
+            },
             nombre = cursor.getString(cursor.getColumnIndexOrThrow("nombre")),
             direccion = cursor.getString(cursor.getColumnIndexOrThrow("direccion")),
             departamento = cursor.getString(cursor.getColumnIndexOrThrow("departamento")),
@@ -213,11 +219,12 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             tipo_usuario = try {
                 cursor.getString(cursor.getColumnIndexOrThrow("tipo_usuario"))
             } catch (e: Exception) {
-                try {
-                    cursor.getString(cursor.getColumnIndexOrThrow("ocupacion"))
-                } catch (e2: Exception) {
-                    null
-                }
+                null
+            },
+            estado_aprobacion = try {
+                cursor.getString(cursor.getColumnIndexOrThrow("estado_aprobacion")) ?: "Aprobado"
+            } catch (e: Exception) {
+                "Aprobado"
             },
             experiencia_años = if (cursor.isNull(cursor.getColumnIndexOrThrow("experiencia_años"))) null else cursor.getInt(cursor.getColumnIndexOrThrow("experiencia_años")),
             observaciones = cursor.getString(cursor.getColumnIndexOrThrow("observaciones")),
@@ -225,5 +232,102 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             fecha_creacion = cursor.getLong(cursor.getColumnIndexOrThrow("fecha_creacion")),
             fecha_modificacion = cursor.getLong(cursor.getColumnIndexOrThrow("fecha_modificacion"))
         )
+    }
+    // ✅ MÉTODOS PARA FIREBASE AUTHENTICATION
+
+    // Obtener voluntario por Firebase UID
+    // ✅ MÉTODOS PARA FIREBASE AUTHENTICATION
+
+    // Obtener voluntario por Firebase UID
+    fun obtenerPorFirebaseUid(firebaseUid: String): Voluntario? {
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT * FROM voluntarios WHERE firebase_uid = ? AND activo = 1 LIMIT 1",
+            arrayOf(firebaseUid)
+        )
+
+        var voluntario: Voluntario? = null
+        if (cursor.moveToFirst()) {
+            voluntario = cursorToVoluntario(cursor)
+        }
+        cursor.close()
+        return voluntario
+    }
+
+    // Obtener voluntario por email
+    fun obtenerPorEmail(email: String): Voluntario? {  // ← DEJAR SOLO ESTE
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT * FROM voluntarios WHERE email = ? AND activo = 1 LIMIT 1",
+            arrayOf(email)
+        )
+
+        var voluntario: Voluntario? = null
+        if (cursor.moveToFirst()) {
+            voluntario = cursorToVoluntario(cursor)
+        }
+        cursor.close()
+        return voluntario
+    }
+
+    // Verificar si existe un email
+    fun existeEmail(email: String): Boolean {
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT COUNT(*) FROM voluntarios WHERE email = ? AND activo = 1",
+            arrayOf(email)
+        )
+
+        var existe = false
+        if (cursor.moveToFirst()) {
+            existe = cursor.getInt(0) > 0
+        }
+        cursor.close()
+        return existe
+    }
+
+    // Contar total de usuarios (para verificar si es el primero)
+    fun contarTotalUsuarios(): Int {
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT COUNT(*) FROM voluntarios",
+            null
+        )
+
+        var count = 0
+        if (cursor.moveToFirst()) {
+            count = cursor.getInt(0)
+        }
+        cursor.close()
+        return count
+    }
+
+    // Obtener solicitudes pendientes de aprobación (para administradores)
+    fun obtenerSolicitudesPendientes(): List<Voluntario> {
+        val voluntarios = mutableListOf<Voluntario>()
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT * FROM voluntarios WHERE estado_aprobacion = 'Pendiente' ORDER BY fecha_creacion DESC",
+            null
+        )
+
+        with(cursor) {
+            while (moveToNext()) {
+                voluntarios.add(cursorToVoluntario(this))
+            }
+        }
+        cursor.close()
+        return voluntarios
+    }
+
+    // Actualizar estado de aprobación
+    fun actualizarEstadoAprobacion(id: Long, estado: String): Int {
+        val db = dbHelper.writableDatabase
+        val values = ContentValues().apply {
+            put("estado_aprobacion", estado)
+            put("fecha_modificacion", System.currentTimeMillis())
+        }
+
+        return db.update("voluntarios", values, "id = ?", arrayOf(id.toString()))
     }
 }

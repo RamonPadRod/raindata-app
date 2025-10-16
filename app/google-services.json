@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "625719842005",
+    "project_id": "raindata-ea3f1",
+    "storage_bucket": "raindata-ea3f1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:625719842005:android:ecbb476f2ce9326f1d7e5c",
+        "android_client_info": {
+          "package_name": "hn.unah.raindata"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCU-9rvgLAKH2gIwHc46IsYoYK1L0CXo20"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

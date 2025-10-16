@@ -51,9 +51,10 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         _voluntarios.value = voluntarios
     }
 
-    fun eliminarVoluntario(id: String) = viewModelScope.launch {
-        repository.eliminarVoluntario(id)
-        cargarVoluntarios()
+    fun eliminarVoluntario(id: Long) {
+        viewModelScope.launch {
+            repository.eliminarVoluntario(id)
+        }
     }
 
     suspend fun existeDNI(dni: String): Boolean {
