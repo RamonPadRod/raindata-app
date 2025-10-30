@@ -4,7 +4,7 @@ import java.util.UUID
 
 data class DatoMeteorologico(
     val id: String = UUID.randomUUID().toString(),
-    val voluntario_id: String,
+    val voluntario_id: Long, // ← CAMBIAR de String a Long
     val voluntario_nombre: String,
     val pluviometro_id: String,
     val pluviometro_registro: String,

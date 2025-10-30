@@ -28,12 +28,11 @@ object UserSession {
         return currentUser?.tipo_usuario
     }
 
-    // Permisos basados en roles
+    // ========== PERMISOS DE VOLUNTARIOS ==========
     fun canCreateVoluntarios(): Boolean {
         return getUserRole() == "Administrador"
     }
 
-    
     fun canEditVoluntarios(): Boolean {
         return getUserRole() == "Administrador"
     }
@@ -46,12 +45,14 @@ object UserSession {
         return getUserRole() in listOf("Administrador", "Observador")
     }
 
+    // ========== PERMISOS DE PLUVIÓMETROS ==========
+    // SOLO Administradores pueden gestionar pluviómetros
     fun canCreatePluviometros(): Boolean {
-        return getUserRole() in listOf("Administrador", "Voluntario")
+        return getUserRole() == "Administrador"
     }
 
     fun canEditPluviometros(): Boolean {
-        return getUserRole() in listOf("Administrador", "Voluntario")
+        return getUserRole() == "Administrador"
     }
 
     fun canDeletePluviometros(): Boolean {
@@ -59,15 +60,17 @@ object UserSession {
     }
 
     fun canViewPluviometros(): Boolean {
-        return getUserRole() in listOf("Administrador", "Voluntario", "Observador")
+        return getUserRole() in listOf("Administrador", "Observador")
     }
 
+    // ========== PERMISOS DE DATOS METEOROLÓGICOS ==========
+    // Administradores y Voluntarios pueden crear datos
     fun canCreateDatosMeteorologicos(): Boolean {
-        return getUserRole() == "Administrador"
+        return getUserRole() in listOf("Administrador", "Voluntario")
     }
 
     fun canEditDatosMeteorologicos(): Boolean {
-        return getUserRole() == "Administrador"
+        return getUserRole() in listOf("Administrador", "Voluntario")
     }
 
     fun canDeleteDatosMeteorologicos(): Boolean {
@@ -75,9 +78,10 @@ object UserSession {
     }
 
     fun canViewDatosMeteorologicos(): Boolean {
-        return getUserRole() in listOf("Administrador", "Observador")
+        return getUserRole() in listOf("Administrador", "Voluntario", "Observador")
     }
 
+    // ========== PERMISOS DE REPORTES ==========
     fun canViewReports(): Boolean {
         return getUserRole() in listOf("Administrador", "Observador")
     }

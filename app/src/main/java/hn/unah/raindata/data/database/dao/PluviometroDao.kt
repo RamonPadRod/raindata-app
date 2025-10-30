@@ -186,7 +186,7 @@ class PluviometroDao(private val dbHelper: AppDatabase) {
             municipio = cursor.getString(cursor.getColumnIndexOrThrow("municipio")),
             aldea = cursor.getString(cursor.getColumnIndexOrThrow("aldea")),
             caserio_barrio_colonia = cursor.getString(cursor.getColumnIndexOrThrow("caserio_barrio_colonia")),
-            responsable_id = cursor.getString(cursor.getColumnIndexOrThrow("responsable_id")),
+            responsable_id = cursor.getLong(cursor.getColumnIndexOrThrow("responsable_id")), // ← CAMBIAR getString a getLong
             responsable_nombre = cursor.getString(cursor.getColumnIndexOrThrow("responsable_nombre")),
             observaciones = cursor.getString(cursor.getColumnIndexOrThrow("observaciones")),
             activo = cursor.getInt(cursor.getColumnIndexOrThrow("activo")) == 1,

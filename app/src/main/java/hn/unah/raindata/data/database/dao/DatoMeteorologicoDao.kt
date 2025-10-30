@@ -63,12 +63,12 @@ class DatoMeteorologicoDao(private val dbHelper: AppDatabase) {
         return datos
     }
 
-    fun obtenerPorVoluntario(voluntarioId: String): List<DatoMeteorologico> {
+    fun obtenerPorVoluntario(voluntarioId: Long): List<DatoMeteorologico> {  // ← Cambiar String a Long
         val datos = mutableListOf<DatoMeteorologico>()
         val db = dbHelper.readableDatabase
         val cursor: Cursor = db.rawQuery(
             "SELECT * FROM datos_meteorologicos WHERE voluntario_id = ? ORDER BY fecha DESC, hora DESC",
-            arrayOf(voluntarioId)
+            arrayOf(voluntarioId.toString())  // ← Agregar .toString()
         )
 
         with(cursor) {
@@ -156,7 +156,7 @@ class DatoMeteorologicoDao(private val dbHelper: AppDatabase) {
     private fun cursorToDatoMeteorologico(cursor: Cursor): DatoMeteorologico {
         return DatoMeteorologico(
             id = cursor.getString(cursor.getColumnIndexOrThrow("id")),
-            voluntario_id = cursor.getString(cursor.getColumnIndexOrThrow("voluntario_id")),
+            voluntario_id = cursor.getLong(cursor.getColumnIndexOrThrow("voluntario_id")), // ← CAMBIAR getString a getLong
             voluntario_nombre = cursor.getString(cursor.getColumnIndexOrThrow("voluntario_nombre")),
             pluviometro_id = cursor.getString(cursor.getColumnIndexOrThrow("pluviometro_id")),
             pluviometro_registro = cursor.getString(cursor.getColumnIndexOrThrow("pluviometro_registro")),

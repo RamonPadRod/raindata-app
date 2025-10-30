@@ -203,7 +203,7 @@ fun HomeScreen(
                 Text(
                     text = when(userRole) {
                         "Administrador" -> "Tienes acceso completo a todas las funcionalidades del sistema."
-                        "Voluntario" -> "Puedes registrar, editar y visualizar pluviómetros."
+                        "Voluntario" -> "Puedes registrar y visualizar datos meteorológicos."
                         "Observador" -> "Puedes visualizar información y estadísticas del sistema."
                         else -> "Tu rol actual no tiene permisos asignados."
                     },

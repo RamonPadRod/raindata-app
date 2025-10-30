@@ -1,9 +1,17 @@
 package hn.unah.raindata.data.database.entities
 
-import java.util.UUID
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.Index
 
+@Entity(
+    tableName = "voluntarios",
+    indices = [Index(value = ["email"], unique = true), Index(value = ["firebase_uid"], unique = true)]
+)
 data class Voluntario(
-    val id: String = UUID.randomUUID().toString(),
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val firebase_uid: String = "",
     val nombre: String,
     val direccion: String,
     val departamento: String,
@@ -11,11 +19,12 @@ data class Voluntario(
     val aldea: String,
     val caserio_barrio_colonia: String,
     val telefono: String? = null,
-    val email: String? = null,
+    val email: String,
     val cedula: String? = null,
     val fecha_nacimiento: String? = null,
     val genero: String? = null,
-    val tipo_usuario: String? = null, // Cambiado de ocupacion
+    val tipo_usuario: String? = null,
+    val estado_aprobacion: String = "Aprobado",
     val experiencia_años: Int? = null,
     val observaciones: String? = null,
     val activo: Boolean = true,

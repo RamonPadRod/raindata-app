@@ -82,7 +82,9 @@ class TelefonoVisualTransformation : VisualTransformation {
 @Composable
 fun RegistroVoluntarioScreen(
     viewModel: VoluntarioViewModel = viewModel(),
-    onVoluntarioGuardado: () -> Unit = {},
+    emailPrecargado: String = "",
+    firebaseUid: String = "",  // ← AGREGAR ESTE PARÁMETRO
+    onVoluntarioGuardado: (String) -> Unit = {},
     soloAdministrador: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
@@ -92,7 +94,7 @@ fun RegistroVoluntarioScreen(
     var nombre by remember { mutableStateOf("") }
     var dni by remember { mutableStateOf("") }
     var telefono by remember { mutableStateOf("") }
-    var correo by remember { mutableStateOf("") }
+    var correo by remember { mutableStateOf(emailPrecargado) }  // ← CAMBIO
     var direccion by remember { mutableStateOf("") }
     var departamento by remember { mutableStateOf("") }
     var expandedDepartamento by remember { mutableStateOf(false) }
@@ -750,6 +752,7 @@ fun RegistroVoluntarioScreen(
                             }
 
                             val voluntario = Voluntario(
+                                firebase_uid = firebaseUid,
                                 nombre = nombre,
                                 direccion = direccion,
                                 departamento = departamento,
@@ -757,7 +760,7 @@ fun RegistroVoluntarioScreen(
                                 aldea = aldea,
                                 caserio_barrio_colonia = caserioBarrioColonia.ifBlank { "" },
                                 telefono = if (telefono.isBlank()) null else viewModel.limpiarTelefono(telefono),
-                                email = correo.ifBlank { null },
+                                email = correo,
                                 cedula = dniLimpio,
                                 tipo_usuario = tipoUsuario,
                                 observaciones = observaciones.ifBlank { null }
@@ -765,7 +768,7 @@ fun RegistroVoluntarioScreen(
 
                             viewModel.guardarVoluntario(voluntario)
                             snackbarHostState.showSnackbar("✅ Voluntario guardado exitosamente")
-                            onVoluntarioGuardado()
+                            onVoluntarioGuardado(tipoUsuario)  // ← CAMBIO
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -796,7 +799,7 @@ fun RegistroVoluntarioScreen(
                 }
 
                 OutlinedButton(
-                    onClick = onVoluntarioGuardado,
+                    onClick = { onVoluntarioGuardado("") },  // ← AGREGAR las llaves y pasar ""
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Cancelar")

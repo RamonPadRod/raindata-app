@@ -5,13 +5,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
+import androidx.lifecycle.viewmodel.compose.viewModel
+import hn.unah.raindata.data.database.AppDatabase
+import hn.unah.raindata.data.database.entities.Voluntario
 import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.ui.ui.*
 import hn.unah.raindata.ui.theme.RainDataTheme
+import hn.unah.raindata.viewmodel.AuthViewModel
+import hn.unah.raindata.viewmodel.VoluntarioViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // Enum para manejar las pantallas
 enum class Pantalla {
     LOGIN,
+    REGISTRO,
+    RECUPERAR_PASSWORD,
     HOME,
     LISTA_VOLUNTARIOS,
     REGISTRO_VOLUNTARIO,
@@ -22,28 +31,104 @@ enum class Pantalla {
 }
 
 class MainActivity : ComponentActivity() {
+    private lateinit var database: AppDatabase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Inicializar base de datos
+        database = AppDatabase.getDatabase(this)
+
         setContent {
             RainDataTheme {
+                val authViewModel: AuthViewModel = viewModel()
+                val voluntarioViewModel: VoluntarioViewModel = viewModel()
+
                 var pantallaActual by remember { mutableStateOf(Pantalla.LOGIN) }
+                var emailRegistrado by remember { mutableStateOf("") }
+                var firebaseUidRegistrado by remember { mutableStateOf("") }  // ← AGREGAR ESTA LÍNEA
+                var esPrimerUsuario by remember { mutableStateOf(false) }
+
+                // Verificar si hay usuarios al iniciar
+                LaunchedEffect(Unit) {
+                    withContext(Dispatchers.IO) {
+                        val voluntarioDao = database.getVoluntarioDao()
+                        val totalUsuarios = voluntarioDao.contarTotalUsuarios()
+                        esPrimerUsuario = totalUsuarios == 0
+                    }
+                }
 
                 when (pantallaActual) {
                     Pantalla.LOGIN -> {
                         LoginScreen(
-                            onLoginSuccess = {
-                                pantallaActual = Pantalla.HOME
+                            authViewModel = authViewModel,
+                            onLoginSuccess = { firebaseUid ->
+                                // Buscar usuario en Room por Firebase UID
+                                val voluntarioDao = database.getVoluntarioDao()
+                                val voluntario = voluntarioDao.obtenerPorFirebaseUid(firebaseUid)
+
+                                if (voluntario != null) {
+                                    // Verificar estado de aprobación
+                                    when (voluntario.estado_aprobacion) {
+                                        "Aprobado" -> {
+                                            UserSession.login(voluntario)
+                                            pantallaActual = Pantalla.HOME
+                                        }
+
+                                        "Pendiente" -> {
+                                            // Mostrar mensaje de cuenta pendiente
+                                            authViewModel.cerrarSesion()
+                                            // TODO: Mostrar un diálogo informando que está pendiente
+                                        }
+
+                                        "Rechazado" -> {
+                                            // Mostrar mensaje de cuenta rechazada
+                                            authViewModel.cerrarSesion()
+                                            // TODO: Mostrar un diálogo informando que fue rechazada
+                                        }
+                                    }
+                                } else {
+                                    // Usuario no existe en Room, ir a completar registro
+                                    pantallaActual = Pantalla.REGISTRO
+                                }
                             },
-                            onNavigateToRegistroAdmin = {
+                            onNavigateToRegistro = {
+                                pantallaActual = Pantalla.REGISTRO
+                            },
+                            onNavigateToRecuperarPassword = {
+                                pantallaActual = Pantalla.RECUPERAR_PASSWORD
+                            }
+                        )
+                    }
+
+                    Pantalla.REGISTRO -> {
+                        RegistroScreen(
+                            authViewModel = authViewModel,
+                            onRegistroExitoso = { firebaseUid, email ->
+                                emailRegistrado = email
+                                firebaseUidRegistrado = firebaseUid  // ← GUARDAR TAMBIÉN EL UID
                                 pantallaActual = Pantalla.REGISTRO_VOLUNTARIO
+                            },
+                            onNavigateToLogin = {
+                                pantallaActual = Pantalla.LOGIN
+                            },
+                            esPrimerUsuario = esPrimerUsuario
+                        )
+                    }
+
+                    Pantalla.RECUPERAR_PASSWORD -> {
+                        RecuperarPasswordScreen(
+                            authViewModel = authViewModel,
+                            onNavigateBack = {
+                                pantallaActual = Pantalla.LOGIN
                             }
                         )
                     }
 
                     else -> {
                         MainLayout(
-                            currentScreen = when(pantallaActual) {
+                            currentScreen = when (pantallaActual) {
                                 Pantalla.HOME -> "HOME"
                                 Pantalla.LISTA_VOLUNTARIOS -> "VOLUNTARIOS"
                                 Pantalla.REGISTRO_VOLUNTARIO -> "REGISTRO_VOLUNTARIO"
@@ -91,6 +176,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onLogout = {
+                                            authViewModel.cerrarSesion()
                                             pantallaActual = Pantalla.LOGIN
                                         }
                                     )
@@ -104,21 +190,70 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onEditarVoluntario = { voluntario ->
-                                            // Aquí puedes implementar la edición más adelante
+                                            // TODO: Implementar edición
                                         }
                                     )
                                 }
 
                                 Pantalla.REGISTRO_VOLUNTARIO -> {
-                                    RegistroVoluntarioScreen(
-                                        onVoluntarioGuardado = {
-                                            if (UserSession.isLoggedIn()) {
-                                                pantallaActual = Pantalla.LISTA_VOLUNTARIOS
-                                            } else {
-                                                pantallaActual = Pantalla.LOGIN
+                                    var intentarLogin by remember { mutableStateOf(false) }
+                                    var tipoUsuarioGuardado by remember { mutableStateOf("") }
+
+                                    // Login automático después de guardar
+                                    LaunchedEffect(intentarLogin) {
+                                        if (intentarLogin) {
+                                            withContext(Dispatchers.IO) {
+                                                try {
+                                                    val voluntarioDao = database.getVoluntarioDao()
+                                                    val voluntario = voluntarioDao.obtenerPorEmail(emailRegistrado)
+
+                                                    // Actualizar si ya no es el primer usuario
+                                                    val totalUsuarios = voluntarioDao.contarTotalUsuarios()
+                                                    esPrimerUsuario = totalUsuarios == 0
+
+                                                    withContext(Dispatchers.Main) {
+                                                        if (voluntario != null) {
+                                                            // Login automático exitoso
+                                                            UserSession.login(voluntario)
+
+                                                            // Redirigir según rol
+                                                            // Redirigir según rol
+                                                            when (tipoUsuarioGuardado) {
+                                                                "Administrador" -> {
+                                                                    pantallaActual = Pantalla.HOME
+                                                                }
+                                                                "Voluntario" -> {
+                                                                    pantallaActual = Pantalla.HOME  // ← CAMBIAR a HOME
+                                                                }
+                                                                "Observador" -> {
+                                                                    pantallaActual = Pantalla.HOME
+                                                                }
+                                                                else -> {
+                                                                    pantallaActual = Pantalla.LOGIN
+                                                                }
+                                                            }
+                                                        } else {
+                                                            pantallaActual = Pantalla.LOGIN
+                                                        }
+                                                    }
+                                                } catch (e: Exception) {
+                                                    withContext(Dispatchers.Main) {
+                                                        pantallaActual = Pantalla.LOGIN
+                                                    }
+                                                }
                                             }
+                                            intentarLogin = false
+                                        }
+                                    }
+
+                                    RegistroVoluntarioScreen(
+                                        emailPrecargado = emailRegistrado,
+                                        firebaseUid = firebaseUidRegistrado,
+                                        onVoluntarioGuardado = { tipoUsuario ->
+                                            tipoUsuarioGuardado = tipoUsuario
+                                            intentarLogin = true
                                         },
-                                        soloAdministrador = !UserSession.isLoggedIn()
+                                        soloAdministrador = esPrimerUsuario
                                     )
                                 }
 
@@ -130,7 +265,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onEditarPluviometro = { pluviometro ->
-                                            // Aquí puedes implementar la edición más adelante
+                                            // TODO: Implementar edición
                                         }
                                     )
                                 }
@@ -147,11 +282,12 @@ class MainActivity : ComponentActivity() {
                                     ListaDatosMeteorologicosScreen(
                                         onAgregarDato = {
                                             if (UserSession.canCreateDatosMeteorologicos()) {
-                                                pantallaActual = Pantalla.REGISTRO_DATO_METEOROLOGICO
+                                                pantallaActual =
+                                                    Pantalla.REGISTRO_DATO_METEOROLOGICO
                                             }
                                         },
                                         onEditarDato = { dato ->
-                                            // Aquí puedes implementar la edición más adelante
+                                            // TODO: Implementar edición
                                         }
                                     )
                                 }
@@ -161,21 +297,19 @@ class MainActivity : ComponentActivity() {
                                         onDatoGuardado = {
                                             pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                                         },
-                                        // ✅ AGREGADO: Navegación al registro de pluviómetros
                                         onNavegarARegistroPluviometro = {
                                             pantallaActual = Pantalla.REGISTRO_PLUVIOMETRO
                                         }
                                     )
                                 }
 
-                                Pantalla.LOGIN -> {
-                                    // No debería llegar aquí, pero por seguridad
-                                }
+                                else -> {}
                             }
                         }
                     }
                 }
             }
         }
+
     }
 }

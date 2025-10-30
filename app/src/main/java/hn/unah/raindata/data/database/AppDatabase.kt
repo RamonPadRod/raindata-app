@@ -11,7 +11,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
 
     companion object {
         private const val DATABASE_NAME = "raindata_database"
-        private const val DATABASE_VERSION = 4 // ← CAMBIADO de 3 a 4
+        private const val DATABASE_VERSION = 5 // ← CAMBIADO de 4 a 5
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -26,10 +26,11 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        // Tabla de voluntarios
+        // Tabla de voluntarios con campos de Firebase
         val createVoluntariosTable = """
             CREATE TABLE voluntarios (
-                id TEXT PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                firebase_uid TEXT NOT NULL UNIQUE,
                 nombre TEXT NOT NULL,
                 direccion TEXT NOT NULL,
                 departamento TEXT NOT NULL,
@@ -37,11 +38,12 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
                 aldea TEXT NOT NULL,
                 caserio_barrio_colonia TEXT,
                 telefono TEXT,
-                email TEXT,
+                email TEXT NOT NULL UNIQUE,
                 cedula TEXT,
                 fecha_nacimiento TEXT,
                 genero TEXT,
                 tipo_usuario TEXT,
+                estado_aprobacion TEXT DEFAULT 'Aprobado',
                 experiencia_años INTEGER,
                 observaciones TEXT,
                 activo INTEGER DEFAULT 1,
@@ -62,7 +64,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
                 municipio TEXT NOT NULL,
                 aldea TEXT NOT NULL,
                 caserio_barrio_colonia TEXT,
-                responsable_id TEXT NOT NULL,
+                responsable_id INTEGER NOT NULL,
                 responsable_nombre TEXT NOT NULL,
                 observaciones TEXT,
                 activo INTEGER DEFAULT 1,
@@ -72,11 +74,11 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
             )
         """.trimIndent()
 
-        // ← NUEVA TABLA
+        // Tabla de datos meteorológicos
         val createDatosMeteorologicosTable = """
             CREATE TABLE datos_meteorologicos (
                 id TEXT PRIMARY KEY,
-                voluntario_id TEXT NOT NULL,
+                voluntario_id INTEGER NOT NULL,
                 voluntario_nombre TEXT NOT NULL,
                 pluviometro_id TEXT NOT NULL,
                 pluviometro_registro TEXT NOT NULL,
@@ -96,13 +98,14 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
 
         db.execSQL(createVoluntariosTable)
         db.execSQL(createPluviometrosTable)
-        db.execSQL(createDatosMeteorologicosTable) // ← NUEVA LÍNEA
+        db.execSQL(createDatosMeteorologicosTable)
 
         // Índices para mejorar rendimiento
         db.execSQL("CREATE INDEX idx_voluntarios_nombre ON voluntarios(nombre)")
+        db.execSQL("CREATE INDEX idx_voluntarios_email ON voluntarios(email)")
+        db.execSQL("CREATE INDEX idx_voluntarios_firebase_uid ON voluntarios(firebase_uid)")
         db.execSQL("CREATE INDEX idx_pluviometros_numero ON pluviometros(numero_registro)")
         db.execSQL("CREATE INDEX idx_pluviometros_responsable ON pluviometros(responsable_id)")
-        // ← NUEVOS ÍNDICES
         db.execSQL("CREATE INDEX idx_datos_fecha ON datos_meteorologicos(fecha)")
         db.execSQL("CREATE INDEX idx_datos_pluviometro ON datos_meteorologicos(pluviometro_id)")
         db.execSQL("CREATE INDEX idx_datos_voluntario ON datos_meteorologicos(voluntario_id)")
@@ -146,7 +149,6 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_pluviometros_responsable ON pluviometros(responsable_id)")
         }
 
-        // ← NUEVO BLOQUE
         if (oldVersion < 4) {
             val createDatosMeteorologicosTable = """
                 CREATE TABLE IF NOT EXISTS datos_meteorologicos (
@@ -174,6 +176,30 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_datos_pluviometro ON datos_meteorologicos(pluviometro_id)")
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_datos_voluntario ON datos_meteorologicos(voluntario_id)")
         }
+
+        // ← NUEVA MIGRACIÓN PARA FIREBASE
+        if (oldVersion < 5) {
+            // Agregar columnas nuevas a voluntarios
+            try {
+                db.execSQL("ALTER TABLE voluntarios ADD COLUMN firebase_uid TEXT DEFAULT ''")
+                db.execSQL("ALTER TABLE voluntarios ADD COLUMN estado_aprobacion TEXT DEFAULT 'Aprobado'")
+
+                // Crear índices
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_voluntarios_email ON voluntarios(email)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS idx_voluntarios_firebase_uid ON voluntarios(firebase_uid)")
+
+                // Actualizar pluviómetros para cambiar responsable_id de TEXT a INTEGER
+                // Nota: SQLite no permite cambiar tipo de columna directamente,
+                // así que si tienes datos existentes, se mantendrán como TEXT
+
+            } catch (e: Exception) {
+                // Si hay error, recrear toda la BD
+                db.execSQL("DROP TABLE IF EXISTS datos_meteorologicos")
+                db.execSQL("DROP TABLE IF EXISTS pluviometros")
+                db.execSQL("DROP TABLE IF EXISTS voluntarios")
+                onCreate(db)
+            }
+        }
     }
 
     fun getVoluntarioDao(): VoluntarioDao {
@@ -184,7 +210,6 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
         return PluviometroDao(this)
     }
 
-    // ← NUEVO MÉTODO
     fun getDatoMeteorologicoDao(): DatoMeteorologicoDao {
         return DatoMeteorologicoDao(this)
     }

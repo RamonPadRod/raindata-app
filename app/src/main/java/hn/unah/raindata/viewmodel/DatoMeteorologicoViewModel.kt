@@ -62,11 +62,11 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
         return datos
     }
 
-    fun obtenerPorVoluntario(voluntarioId: String): LiveData<List<DatoMeteorologico>> {
+    fun obtenerPorVoluntario(voluntarioId: Long): LiveData<List<DatoMeteorologico>> {
         val datos = MutableLiveData<List<DatoMeteorologico>>()
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) {  // ← SIN "context ="
             val resultado = datoMeteorologicoDao.obtenerPorVoluntario(voluntarioId)
-            datos.postValue(resultado)
+            datos.postValue(resultado)  // ← SIN "value ="
         }
         return datos
     }
