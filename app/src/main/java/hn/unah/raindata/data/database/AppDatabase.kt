@@ -11,7 +11,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
 
     companion object {
         private const val DATABASE_NAME = "raindata_database"
-        private const val DATABASE_VERSION = 5 // ← CAMBIADO de 4 a 5
+        private const val DATABASE_VERSION = 6 // ← CAMBIADO de 5 a 6
 
         @Volatile
         private var INSTANCE: AppDatabase? = null
@@ -26,7 +26,7 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        // Tabla de voluntarios con campos de Firebase
+        // Tabla de voluntarios con TODAS las columnas nuevas
         val createVoluntariosTable = """
             CREATE TABLE voluntarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,13 +39,16 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
                 caserio_barrio_colonia TEXT,
                 telefono TEXT,
                 email TEXT NOT NULL UNIQUE,
+                tipo_documento TEXT NOT NULL DEFAULT 'DNI',
                 cedula TEXT,
+                pasaporte TEXT,
                 fecha_nacimiento TEXT,
                 genero TEXT,
                 tipo_usuario TEXT,
                 estado_aprobacion TEXT DEFAULT 'Aprobado',
                 experiencia_años INTEGER,
                 observaciones TEXT,
+                fotografia TEXT,
                 activo INTEGER DEFAULT 1,
                 fecha_creacion INTEGER,
                 fecha_modificacion INTEGER
@@ -177,7 +180,6 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_datos_voluntario ON datos_meteorologicos(voluntario_id)")
         }
 
-        // ← NUEVA MIGRACIÓN PARA FIREBASE
         if (oldVersion < 5) {
             // Agregar columnas nuevas a voluntarios
             try {
@@ -188,12 +190,30 @@ class AppDatabase(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, n
                 db.execSQL("CREATE INDEX IF NOT EXISTS idx_voluntarios_email ON voluntarios(email)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS idx_voluntarios_firebase_uid ON voluntarios(firebase_uid)")
 
-                // Actualizar pluviómetros para cambiar responsable_id de TEXT a INTEGER
-                // Nota: SQLite no permite cambiar tipo de columna directamente,
-                // así que si tienes datos existentes, se mantendrán como TEXT
-
             } catch (e: Exception) {
                 // Si hay error, recrear toda la BD
+                db.execSQL("DROP TABLE IF EXISTS datos_meteorologicos")
+                db.execSQL("DROP TABLE IF EXISTS pluviometros")
+                db.execSQL("DROP TABLE IF EXISTS voluntarios")
+                onCreate(db)
+            }
+        }
+
+        // ✅ NUEVA MIGRACIÓN DE VERSIÓN 5 A 6 - AGREGAR COLUMNAS PARA DNI/PASAPORTE
+        if (oldVersion < 6) {
+            try {
+                // Agregar las columnas nuevas
+                db.execSQL("ALTER TABLE voluntarios ADD COLUMN tipo_documento TEXT NOT NULL DEFAULT 'DNI'")
+                db.execSQL("ALTER TABLE voluntarios ADD COLUMN pasaporte TEXT")
+                db.execSQL("ALTER TABLE voluntarios ADD COLUMN fotografia TEXT")
+
+                // Actualizar registros existentes para asegurar compatibilidad
+                // Si tienen cedula, marcarlos como tipo DNI
+                db.execSQL("UPDATE voluntarios SET tipo_documento = 'DNI' WHERE cedula IS NOT NULL AND cedula != ''")
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Si falla, recrear la BD
                 db.execSQL("DROP TABLE IF EXISTS datos_meteorologicos")
                 db.execSQL("DROP TABLE IF EXISTS pluviometros")
                 db.execSQL("DROP TABLE IF EXISTS voluntarios")

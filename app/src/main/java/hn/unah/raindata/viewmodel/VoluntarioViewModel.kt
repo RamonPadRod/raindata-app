@@ -12,6 +12,8 @@ import hn.unah.raindata.data.repository.VoluntarioRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.*
 
 class VoluntarioViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -63,6 +65,12 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    suspend fun existePasaporte(pasaporte: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            voluntarioDao.existePasaporte(pasaporte)
+        }
+    }
+
     fun buscarPorCedula(cedula: String): Voluntario? {
         return voluntarioDao.obtenerPorDNI(cedula)
     }
@@ -82,10 +90,11 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         return null
     }
 
+    // ✅ CORREGIDO: DNI ahora es opcional (solo si tipo_documento = "DNI")
     fun validarDNI(dni: String): String? {
-        if (dni.isBlank()) return "El DNI es obligatorio"
+        if (dni.isBlank()) return null // ← CAMBIO: Ya no es obligatorio siempre
 
-        // Remover guiones para validar
+        // Si el usuario empieza a escribir, validar
         val dniLimpio = dni.replace("-", "")
 
         if (dniLimpio.length != 13) return "DNI incompleto (formato: XXXX-XXXX-XXXXX)"
@@ -111,24 +120,9 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
 
         // Mapa de municipios por departamento
         val municipiosPorDepartamento = mapOf(
-            1 to 8,   // Atlántida
-            2 to 10,  // Colón
-            3 to 21,  // Comayagua
-            4 to 23,  // Copán
-            5 to 12,  // Cortés
-            6 to 16,  // Choluteca
-            7 to 19,  // El Paraíso
-            8 to 28,  // Francisco Morazán
-            9 to 6,   // Gracias a Dios
-            10 to 17, // Intibucá
-            11 to 4,  // Islas de la Bahía
-            12 to 19, // La Paz
-            13 to 28, // Lempira
-            14 to 16, // Ocotepeque
-            15 to 23, // Olancho
-            16 to 28, // Santa Bárbara
-            17 to 9,  // Valle
-            18 to 11  // Yoro
+            1 to 8, 2 to 10, 3 to 21, 4 to 23, 5 to 12, 6 to 16,
+            7 to 19, 8 to 28, 9 to 6, 10 to 17, 11 to 4, 12 to 19,
+            13 to 28, 14 to 16, 15 to 23, 16 to 28, 17 to 9, 18 to 11
         )
 
         val limiteMunicipios = municipiosPorDepartamento[departamento] ?: return "Departamento inválido"
@@ -138,9 +132,123 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         // Validar año (1900 - año actual)
-        val anioActual = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+        val anioActual = Calendar.getInstance().get(Calendar.YEAR)
         if (anio !in 1900..anioActual) {
             return "Año inválido (1900-$anioActual)"
+        }
+
+        return null
+    }
+
+    // ✅ CORREGIDO: Pasaporte ahora es opcional (solo si tipo_documento = "Pasaporte")
+    fun validarPasaporte(pasaporte: String): String? {
+        if (pasaporte.isBlank()) return null // ← CAMBIO: Ya no es obligatorio siempre
+
+        // Si el usuario empieza a escribir, validar
+        if (pasaporte.length < 6) {
+            return "El pasaporte debe tener al menos 6 caracteres"
+        }
+        if (pasaporte.length > 20) {
+            return "El pasaporte no puede exceder 20 caracteres"
+        }
+
+        // Solo letras y números (sin espacios ni caracteres especiales)
+        val regex = Regex("^[A-Z0-9]+$")
+        if (!regex.matches(pasaporte.uppercase())) {
+            return "El pasaporte solo puede contener letras y números (sin espacios)"
+        }
+
+        // Validar que tenga al menos una letra y un número
+        if (!pasaporte.any { it.isLetter() }) {
+            return "El pasaporte debe contener al menos una letra"
+        }
+        if (!pasaporte.any { it.isDigit() }) {
+            return "El pasaporte debe contener al menos un número"
+        }
+
+        return null
+    }
+
+    fun formatearPasaporte(input: String): String {
+        // Convertir a mayúsculas y remover espacios
+        return input.uppercase().replace(" ", "").filter { it.isLetterOrDigit() }.take(20)
+    }
+
+    // ✅ CORREGIDO: Fecha de Nacimiento ahora es OPCIONAL
+    fun validarFechaNacimiento(fecha: String): String? {
+        if (fecha.isBlank()) return null // ← CAMBIO: Ahora es opcional
+
+        // Validar formato YYYY-MM-DD
+        val regex = Regex("^\\d{4}-\\d{2}-\\d{2}$")
+        if (!regex.matches(fecha)) {
+            return "Formato inválido (debe ser AAAA-MM-DD)"
+        }
+
+        return try {
+            val formato = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            formato.isLenient = false
+            val fechaNacimiento = formato.parse(fecha) ?: return "Fecha inválida"
+
+            val calendar = Calendar.getInstance()
+            calendar.time = fechaNacimiento
+
+            // Validar que no sea fecha futura
+            val hoy = Calendar.getInstance()
+            if (calendar.after(hoy)) {
+                return "La fecha de nacimiento no puede ser futura"
+            }
+
+            // Validar edad mínima (debe tener al menos 18 años)
+            val edadMinima = Calendar.getInstance()
+            edadMinima.add(Calendar.YEAR, -18)
+            if (calendar.after(edadMinima)) {
+                return "Debe ser mayor de 18 años"
+            }
+
+            // Validar edad máxima (no más de 100 años)
+            val edadMaxima = Calendar.getInstance()
+            edadMaxima.add(Calendar.YEAR, -100)
+            if (calendar.before(edadMaxima)) {
+                return "Fecha de nacimiento muy antigua (máximo 100 años)"
+            }
+
+            null
+        } catch (e: Exception) {
+            "Fecha inválida"
+        }
+    }
+
+    fun calcularEdad(fecha: String): Int? {
+        if (fecha.isBlank()) return null // ← AÑADIDO: Manejar cadena vacía
+
+        return try {
+            val formato = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val fechaNacimiento = formato.parse(fecha) ?: return null
+
+            val nacimiento = Calendar.getInstance()
+            nacimiento.time = fechaNacimiento
+
+            val hoy = Calendar.getInstance()
+
+            var edad = hoy.get(Calendar.YEAR) - nacimiento.get(Calendar.YEAR)
+
+            if (hoy.get(Calendar.DAY_OF_YEAR) < nacimiento.get(Calendar.DAY_OF_YEAR)) {
+                edad--
+            }
+
+            edad
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    // ✅ CORREGIDO: Género ahora es OPCIONAL
+    fun validarGenero(genero: String): String? {
+        if (genero.isBlank()) return null // ← CAMBIO: Ahora es opcional
+
+        val generosValidos = listOf("Masculino", "Femenino", "Otro")
+        if (genero !in generosValidos) {
+            return "Género no válido"
         }
 
         return null
