@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("com.google.gms.google-services")
-    id("com.google.devtools.ksp") version "1.9.22-1.0.17" // ✅ ACTUALIZADO
+    id("com.google.devtools.ksp") version "1.9.20-1.0.14"
 }
 
 android {
@@ -42,7 +42,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10" // ✅ ACTUALIZADO (compatible con Kotlin 1.9.22)
+        kotlinCompilerExtensionVersion = "1.5.1"
     }
     packaging {
         resources {
@@ -52,78 +52,45 @@ android {
 }
 
 dependencies {
-    // ✅ FIREBASE
-    implementation(platform("com.google.firebase:firebase-bom:32.8.0"))
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
 
-    // ✅ ROOM
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
 
-    // ✅ COMPOSE BOM - Versión actualizada
-    implementation(platform("androidx.compose:compose-bom:2024.02.00"))
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.00"))
-
-    // ✅ COMPOSE UI
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
-
-    // ✅ MATERIAL 3 - Versión específica actualizada (CRÍTICO)
-    implementation("androidx.compose.material3:material3:1.2.1")
-    implementation("androidx.compose.material3:material3-window-size-class:1.2.1")
-
-    // ✅ MATERIAL ICONS
-    implementation("androidx.compose.material:material-icons-core")
-    implementation("androidx.compose.material:material-icons-extended:1.6.2")
-
-    // ✅ ANDROID CORE
     implementation(libs.androidx.core.ktx)
-    implementation("androidx.appcompat:appcompat:1.6.1")
-
-    // ✅ LIFECYCLE & VIEWMODEL
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+    implementation(libs.engage.core)
+    implementation(libs.androidx.compose.runtime.livedata)
+
+    implementation("androidx.compose.material:material-icons-extended:1.5.4")
+
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
-    implementation("androidx.compose.runtime:runtime-livedata")
+    implementation("androidx.navigation:navigation-compose:2.7.6")
 
-    // ✅ ACTIVITY COMPOSE
-    implementation(libs.androidx.activity.compose)
-
-    // ✅ NAVIGATION
-    implementation("androidx.navigation:navigation-compose:2.7.7")
-
-    // ✅ GOOGLE MAPS Y UBICACIÓN
+    // NUEVAS DEPENDENCIAS PARA GOOGLE MAPS Y UBICACIÓN
     implementation("com.google.android.gms:play-services-maps:18.2.0")
-    implementation("com.google.android.gms:play-services-location:21.2.0")
-    implementation("com.google.maps.android:maps-compose:4.3.3")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("com.google.maps.android:maps-compose:4.3.0")
 
-    // ✅ COROUTINES
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
-
-    // ✅ COIL (para cargar imágenes - útil para la foto de perfil)
-    implementation("io.coil-kt:coil-compose:2.5.0")
-
-    // ✅ ACCOMPANIST (permisos y utilidades)
-    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
-
-    // ✅ TESTING
     testImplementation(libs.junit)
-    testImplementation("junit:junit:4.13.2")
     androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.tooling)
+    debugImplementation(libs.androidx.ui.test.manifest)
 
-    // ✅ OTRAS DEPENDENCIAS (si las necesitas)
-    implementation(libs.engage.core)
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }
