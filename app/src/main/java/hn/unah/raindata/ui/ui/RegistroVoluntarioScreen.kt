@@ -4,8 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
@@ -17,6 +20,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import hn.unah.raindata.data.database.entities.Voluntario
 import hn.unah.raindata.viewmodel.VoluntarioViewModel
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.*
 
 // ✅ VISUAL TRANSFORMATION PARA DNI
 class DniVisualTransformation : VisualTransformation {
@@ -83,18 +88,22 @@ class TelefonoVisualTransformation : VisualTransformation {
 fun RegistroVoluntarioScreen(
     viewModel: VoluntarioViewModel = viewModel(),
     emailPrecargado: String = "",
-    firebaseUid: String = "",  // ← AGREGAR ESTE PARÁMETRO
+    firebaseUid: String = "",
     onVoluntarioGuardado: (String) -> Unit = {},
     soloAdministrador: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // ✅ NUEVO: Selector de tipo de documento
+    var tipoDocumento by remember { mutableStateOf("DNI") } // "DNI" o "Pasaporte"
+
     // Estados del formulario
     var nombre by remember { mutableStateOf("") }
     var dni by remember { mutableStateOf("") }
+    var pasaporte by remember { mutableStateOf("") } // ✅ NUEVO
     var telefono by remember { mutableStateOf("") }
-    var correo by remember { mutableStateOf(emailPrecargado) }  // ← CAMBIO
+    var correo by remember { mutableStateOf(emailPrecargado) }
     var direccion by remember { mutableStateOf("") }
     var departamento by remember { mutableStateOf("") }
     var expandedDepartamento by remember { mutableStateOf(false) }
@@ -106,6 +115,12 @@ fun RegistroVoluntarioScreen(
     var expandedTipoUsuario by remember { mutableStateOf(false) }
     var observaciones by remember { mutableStateOf("") }
 
+    // ✅ NUEVOS CAMPOS
+    var fechaNacimiento by remember { mutableStateOf("") }
+    var genero by remember { mutableStateOf("") }
+    var expandedGenero by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
     // Lista de municipios según departamento seleccionado
     val municipiosDisponibles = remember(departamento) {
         hn.unah.raindata.data.utils.DepartamentosHonduras.obtenerMunicipios(departamento)
@@ -114,6 +129,7 @@ fun RegistroVoluntarioScreen(
     // Estados de error
     var errorNombre by remember { mutableStateOf<String?>(null) }
     var errorDNI by remember { mutableStateOf<String?>(null) }
+    var errorPasaporte by remember { mutableStateOf<String?>(null) } // ✅ NUEVO
     var errorTelefono by remember { mutableStateOf<String?>(null) }
     var errorCorreo by remember { mutableStateOf<String?>(null) }
     var errorDireccion by remember { mutableStateOf<String?>(null) }
@@ -123,8 +139,11 @@ fun RegistroVoluntarioScreen(
     var errorCaserio by remember { mutableStateOf<String?>(null) }
     var errorTipoUsuario by remember { mutableStateOf<String?>(null) }
     var errorObservaciones by remember { mutableStateOf<String?>(null) }
+    var errorFechaNacimiento by remember { mutableStateOf<String?>(null) } // ✅ NUEVO
+    var errorGenero by remember { mutableStateOf<String?>(null) } // ✅ NUEVO
 
     val tiposUsuario = listOf("Observador", "Voluntario", "Administrador")
+    val generos = listOf("Masculino", "Femenino", "Otro")
 
     // Si es solo administrador, forzar el valor
     LaunchedEffect(soloAdministrador) {
@@ -138,18 +157,25 @@ fun RegistroVoluntarioScreen(
         errorNombre = viewModel.validarNombre(nombre)
     }
 
-    LaunchedEffect(dni) {
-        // Validar usando el DNI formateado
-        val dniFormateado = if (dni.length == 13) {
-            "${dni.substring(0, 4)}-${dni.substring(4, 8)}-${dni.substring(8)}"
-        } else {
-            dni
+    LaunchedEffect(dni, tipoDocumento) {
+        if (tipoDocumento == "DNI") {
+            val dniFormateado = if (dni.length == 13) {
+                "${dni.substring(0, 4)}-${dni.substring(4, 8)}-${dni.substring(8)}"
+            } else {
+                dni
+            }
+            errorDNI = viewModel.validarDNI(dniFormateado)
         }
-        errorDNI = viewModel.validarDNI(dniFormateado)
+    }
+
+    // ✅ NUEVO: Validación de pasaporte
+    LaunchedEffect(pasaporte, tipoDocumento) {
+        if (tipoDocumento == "Pasaporte") {
+            errorPasaporte = viewModel.validarPasaporte(pasaporte)
+        }
     }
 
     LaunchedEffect(telefono) {
-        // Validar usando el teléfono formateado
         val telefonoFormateado = if (telefono.length == 8) {
             "${telefono.substring(0, 4)}-${telefono.substring(4)}"
         } else {
@@ -168,7 +194,6 @@ fun RegistroVoluntarioScreen(
 
     LaunchedEffect(departamento) {
         errorDepartamento = viewModel.validarDepartamento(departamento)
-        // Resetear municipio si cambia departamento
         if (municipio.isNotEmpty() && !municipiosDisponibles.contains(municipio)) {
             municipio = ""
         }
@@ -194,9 +219,19 @@ fun RegistroVoluntarioScreen(
         errorTipoUsuario = viewModel.validarTipoUsuario(tipoUsuario, soloAdministrador)
     }
 
-    // Verificar si hay errores
+    // ✅ NUEVO: Validaciones de fecha de nacimiento y género
+    LaunchedEffect(fechaNacimiento) {
+        errorFechaNacimiento = viewModel.validarFechaNacimiento(fechaNacimiento)
+    }
+
+    LaunchedEffect(genero) {
+        errorGenero = viewModel.validarGenero(genero)
+    }
+
+    // Verificar si hay errores según tipo de documento
     val hayErrores = errorNombre != null ||
-            errorDNI != null ||
+            (tipoDocumento == "DNI" && errorDNI != null) ||
+            (tipoDocumento == "Pasaporte" && errorPasaporte != null) ||
             errorTelefono != null ||
             errorCorreo != null ||
             errorDireccion != null ||
@@ -205,7 +240,9 @@ fun RegistroVoluntarioScreen(
             errorAldea != null ||
             errorCaserio != null ||
             errorTipoUsuario != null ||
-            errorObservaciones != null
+            errorObservaciones != null ||
+            errorFechaNacimiento != null ||
+            errorGenero != null
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -278,48 +315,231 @@ fun RegistroVoluntarioScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // DNI (CON VISUALTRANSFORMATION - SOLUCIÓN DEFINITIVA)
+                    // ✅ NUEVO: SELECTOR DE TIPO DE DOCUMENTO
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp)
+                        ) {
+                            Text(
+                                text = "Tipo de Documento *",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilterChip(
+                                    selected = tipoDocumento == "DNI",
+                                    onClick = {
+                                        tipoDocumento = "DNI"
+                                        // Limpiar el campo contrario
+                                        pasaporte = ""
+                                        errorPasaporte = null
+                                    },
+                                    label = { Text("DNI Hondureño") },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilterChip(
+                                    selected = tipoDocumento == "Pasaporte",
+                                    onClick = {
+                                        tipoDocumento = "Pasaporte"
+                                        // Limpiar el campo contrario
+                                        dni = ""
+                                        errorDNI = null
+                                    },
+                                    label = { Text("Pasaporte") },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+
+                    // DNI O PASAPORTE (según selección)
+                    if (tipoDocumento == "DNI") {
+                        // DNI (CON VISUALTRANSFORMATION)
+                        OutlinedTextField(
+                            value = dni,
+                            onValueChange = { input ->
+                                dni = input.filter { it.isDigit() }.take(13)
+                            },
+                            label = { Text("DNI *") },
+                            placeholder = { Text("0708-2005-00276") },
+                            visualTransformation = DniVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            isError = errorDNI != null && dni.isNotBlank(),
+                            supportingText = {
+                                if (errorDNI != null && dni.isNotBlank()) {
+                                    Text(
+                                        text = errorDNI!!,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                } else if (errorDNI == null && dni.length == 13) {
+                                    Text(
+                                        text = "✓ DNI válido",
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                } else {
+                                    Text("Formato: XXXX-XXXX-XXXXX")
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = when {
+                                    errorDNI != null && dni.isNotBlank() -> MaterialTheme.colorScheme.error
+                                    errorDNI == null && dni.length == 13 -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.outline
+                                }
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        // ✅ NUEVO: CAMPO PASAPORTE
+                        OutlinedTextField(
+                            value = pasaporte,
+                            onValueChange = { input ->
+                                pasaporte = viewModel.formatearPasaporte(input)
+                            },
+                            label = { Text("Pasaporte *") },
+                            placeholder = { Text("AB123456") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                            isError = errorPasaporte != null && pasaporte.isNotBlank(),
+                            supportingText = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    if (errorPasaporte != null && pasaporte.isNotBlank()) {
+                                        Text(
+                                            text = errorPasaporte!!,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    } else if (errorPasaporte == null && pasaporte.length >= 6) {
+                                        Text(
+                                            text = "✓ Pasaporte válido",
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    } else {
+                                        Text("6-20 caracteres (letras y números)")
+                                    }
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Text(
+                                        text = "${pasaporte.length}/20",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = when {
+                                    errorPasaporte != null && pasaporte.isNotBlank() -> MaterialTheme.colorScheme.error
+                                    errorPasaporte == null && pasaporte.length >= 6 -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.outline
+                                }
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // ✅ NUEVO: FECHA DE NACIMIENTO
                     OutlinedTextField(
-                        value = dni,
-                        onValueChange = { input ->
-                            // Solo permitir dígitos, máximo 13
-                            dni = input.filter { it.isDigit() }.take(13)
+                        value = fechaNacimiento,
+                        onValueChange = { },
+                        readOnly = true,
+                        label = { Text("Fecha de Nacimiento *") },
+                        placeholder = { Text("AAAA-MM-DD") },
+                        trailingIcon = {
+                            IconButton(onClick = { showDatePicker = true }) {
+                                Icon(Icons.Default.CalendarToday, contentDescription = "Seleccionar fecha")
+                            }
                         },
-                        label = { Text("DNI *") },
-                        placeholder = { Text("0708-2005-00276") },
-                        visualTransformation = DniVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        isError = errorDNI != null && dni.isNotBlank(),
+                        isError = errorFechaNacimiento != null && fechaNacimiento.isNotBlank(),
                         supportingText = {
-                            if (errorDNI != null && dni.isNotBlank()) {
+                            if (errorFechaNacimiento != null && fechaNacimiento.isNotBlank()) {
                                 Text(
-                                    text = errorDNI!!,
+                                    text = errorFechaNacimiento!!,
                                     color = MaterialTheme.colorScheme.error
                                 )
-                            } else if (errorDNI == null && dni.length == 13) {
+                            } else if (errorFechaNacimiento == null && fechaNacimiento.isNotBlank()) {
+                                val edad = viewModel.calcularEdad(fechaNacimiento)
                                 Text(
-                                    text = "✓ DNI válido",
+                                    text = "✓ Válido (Edad: $edad años)",
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             } else {
-                                Text("Formato: XXXX-XXXX-XXXXX")
+                                Text("Debe ser mayor de 18 años")
                             }
                         },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = when {
-                                errorDNI != null && dni.isNotBlank() -> MaterialTheme.colorScheme.error
-                                errorDNI == null && dni.length == 13 -> MaterialTheme.colorScheme.primary
+                                errorFechaNacimiento != null && fechaNacimiento.isNotBlank() -> MaterialTheme.colorScheme.error
+                                errorFechaNacimiento == null && fechaNacimiento.isNotBlank() -> MaterialTheme.colorScheme.primary
                                 else -> MaterialTheme.colorScheme.outline
                             }
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // TELÉFONO (CON VISUALTRANSFORMATION - SOLUCIÓN DEFINITIVA)
+                    // ✅ NUEVO: GÉNERO
+                    ExposedDropdownMenuBox(
+                        expanded = expandedGenero,
+                        onExpandedChange = { expandedGenero = it }
+                    ) {
+                        OutlinedTextField(
+                            value = genero,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Género *") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGenero) },
+                            isError = errorGenero != null && genero.isBlank(),
+                            supportingText = {
+                                if (errorGenero != null && genero.isBlank()) {
+                                    Text(
+                                        text = errorGenero!!,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                } else if (errorGenero == null && genero.isNotBlank()) {
+                                    Text(
+                                        text = "✓ Válido",
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = when {
+                                    errorGenero != null && genero.isBlank() -> MaterialTheme.colorScheme.error
+                                    errorGenero == null && genero.isNotBlank() -> MaterialTheme.colorScheme.primary
+                                    else -> MaterialTheme.colorScheme.outline
+                                }
+                            ),
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedGenero,
+                            onDismissRequest = { expandedGenero = false }
+                        ) {
+                            generos.forEach { gen ->
+                                DropdownMenuItem(
+                                    text = { Text(gen) },
+                                    onClick = {
+                                        genero = gen
+                                        expandedGenero = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // TELÉFONO (CON VISUALTRANSFORMATION)
                     OutlinedTextField(
                         value = telefono,
                         onValueChange = { input ->
-                            // Solo permitir dígitos, máximo 8
                             telefono = input.filter { it.isDigit() }.take(8)
                         },
                         label = { Text("Teléfono") },
@@ -740,15 +960,28 @@ fun RegistroVoluntarioScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            val dniLimpio = viewModel.limpiarDNI(dni)
-                            val existe = viewModel.existeDNI(dniLimpio)
+                            // Validar según tipo de documento
+                            if (tipoDocumento == "DNI") {
+                                val dniLimpio = viewModel.limpiarDNI(dni)
+                                val existe = viewModel.existeDNI(dniLimpio)
 
-                            if (existe) {
-                                snackbarHostState.showSnackbar(
-                                    message = "⚠️ Este DNI ya está registrado en el sistema",
-                                    duration = SnackbarDuration.Long
-                                )
-                                return@launch
+                                if (existe) {
+                                    snackbarHostState.showSnackbar(
+                                        message = "⚠️ Este DNI ya está registrado en el sistema",
+                                        duration = SnackbarDuration.Long
+                                    )
+                                    return@launch
+                                }
+                            } else {
+                                val existe = viewModel.existePasaporte(pasaporte)
+
+                                if (existe) {
+                                    snackbarHostState.showSnackbar(
+                                        message = "⚠️ Este pasaporte ya está registrado en el sistema",
+                                        duration = SnackbarDuration.Long
+                                    )
+                                    return@launch
+                                }
                             }
 
                             val voluntario = Voluntario(
@@ -761,14 +994,18 @@ fun RegistroVoluntarioScreen(
                                 caserio_barrio_colonia = caserioBarrioColonia.ifBlank { "" },
                                 telefono = if (telefono.isBlank()) null else viewModel.limpiarTelefono(telefono),
                                 email = correo,
-                                cedula = dniLimpio,
+                                tipo_documento = tipoDocumento,
+                                cedula = if (tipoDocumento == "DNI") viewModel.limpiarDNI(dni) else null,
+                                pasaporte = if (tipoDocumento == "Pasaporte") pasaporte else null,
+                                fecha_nacimiento = fechaNacimiento,
+                                genero = genero,
                                 tipo_usuario = tipoUsuario,
                                 observaciones = observaciones.ifBlank { null }
                             )
 
                             viewModel.guardarVoluntario(voluntario)
                             snackbarHostState.showSnackbar("✅ Voluntario guardado exitosamente")
-                            onVoluntarioGuardado(tipoUsuario)  // ← CAMBIO
+                            onVoluntarioGuardado(tipoUsuario)
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -781,6 +1018,7 @@ fun RegistroVoluntarioScreen(
                     onClick = {
                         nombre = ""
                         dni = ""
+                        pasaporte = ""
                         telefono = ""
                         correo = ""
                         direccion = ""
@@ -788,6 +1026,8 @@ fun RegistroVoluntarioScreen(
                         municipio = ""
                         aldea = ""
                         caserioBarrioColonia = ""
+                        fechaNacimiento = ""
+                        genero = ""
                         if (!soloAdministrador) {
                             tipoUsuario = ""
                         }
@@ -799,17 +1039,18 @@ fun RegistroVoluntarioScreen(
                 }
 
                 OutlinedButton(
-                    onClick = { onVoluntarioGuardado("") },  // ← AGREGAR las llaves y pasar ""
+                    onClick = { onVoluntarioGuardado("") },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Cancelar")
                 }
             }
 
-            // Resumen de errores (SOLO SI HAY ERRORES VISIBLES)
+            // Resumen de errores
             val erroresVisibles = listOfNotNull(
                 if (errorNombre != null && nombre.isNotBlank()) errorNombre else null,
-                if (errorDNI != null && dni.isNotBlank()) errorDNI else null,
+                if (tipoDocumento == "DNI" && errorDNI != null && dni.isNotBlank()) errorDNI else null,
+                if (tipoDocumento == "Pasaporte" && errorPasaporte != null && pasaporte.isNotBlank()) errorPasaporte else null,
                 if (errorTelefono != null && telefono.isNotBlank()) errorTelefono else null,
                 if (errorCorreo != null && correo.isNotBlank()) errorCorreo else null,
                 if (errorDireccion != null && direccion.isNotBlank()) errorDireccion else null,
@@ -818,7 +1059,9 @@ fun RegistroVoluntarioScreen(
                 if (errorAldea != null && aldea.isNotBlank()) errorAldea else null,
                 if (errorCaserio != null && caserioBarrioColonia.isNotBlank()) errorCaserio else null,
                 if (errorTipoUsuario != null && !soloAdministrador) errorTipoUsuario else null,
-                if (errorObservaciones != null && observaciones.isNotBlank()) errorObservaciones else null
+                if (errorObservaciones != null && observaciones.isNotBlank()) errorObservaciones else null,
+                if (errorFechaNacimiento != null && fechaNacimiento.isNotBlank()) errorFechaNacimiento else null,
+                if (errorGenero != null && genero.isBlank()) errorGenero else null
             )
 
             if (erroresVisibles.isNotEmpty()) {
@@ -845,6 +1088,39 @@ fun RegistroVoluntarioScreen(
                     }
                 }
             }
+        }
+    }
+
+    // ✅ DATE PICKER DIALOG
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = System.currentTimeMillis()
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val calendar = Calendar.getInstance()
+                            calendar.timeInMillis = millis
+                            val formato = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                            fechaNacimiento = formato.format(calendar.time)
+                        }
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("Aceptar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancelar")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
         }
     }
 }

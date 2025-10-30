@@ -19,13 +19,16 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             put("caserio_barrio_colonia", voluntario.caserio_barrio_colonia)
             put("telefono", voluntario.telefono)
             put("email", voluntario.email)
+            put("tipo_documento", voluntario.tipo_documento) // ✅ NUEVO
             put("cedula", voluntario.cedula)
+            put("pasaporte", voluntario.pasaporte) // ✅ NUEVO
             put("fecha_nacimiento", voluntario.fecha_nacimiento)
             put("genero", voluntario.genero)
             put("tipo_usuario", voluntario.tipo_usuario)
             put("estado_aprobacion", voluntario.estado_aprobacion)
             put("experiencia_años", voluntario.experiencia_años)
             put("observaciones", voluntario.observaciones)
+            put("fotografia", voluntario.fotografia) // ✅ NUEVO
             put("activo", if (voluntario.activo) 1 else 0)
             put("fecha_creacion", voluntario.fecha_creacion)
             put("fecha_modificacion", voluntario.fecha_modificacion)
@@ -100,7 +103,7 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         return voluntario
     }
 
-    // ✅ NUEVO: Verificar si un DNI ya existe
+    // ✅ Verificar si un DNI ya existe
     fun existeDNI(dni: String): Boolean {
         val db = dbHelper.readableDatabase
         val cursor: Cursor = db.rawQuery(
@@ -116,12 +119,44 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         return existe
     }
 
-    // ✅ NUEVO: Obtener voluntario por DNI (para login)
+    // ✅ NUEVO: Verificar si un pasaporte ya existe
+    fun existePasaporte(pasaporte: String): Boolean {
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT COUNT(*) FROM voluntarios WHERE pasaporte = ? AND activo = 1",
+            arrayOf(pasaporte)
+        )
+
+        var existe = false
+        if (cursor.moveToFirst()) {
+            existe = cursor.getInt(0) > 0
+        }
+        cursor.close()
+        return existe
+    }
+
+    // ✅ Obtener voluntario por DNI (para login)
     fun obtenerPorDNI(dni: String): Voluntario? {
         val db = dbHelper.readableDatabase
         val cursor: Cursor = db.rawQuery(
             "SELECT * FROM voluntarios WHERE cedula = ? AND activo = 1 LIMIT 1",
             arrayOf(dni)
+        )
+
+        var voluntario: Voluntario? = null
+        if (cursor.moveToFirst()) {
+            voluntario = cursorToVoluntario(cursor)
+        }
+        cursor.close()
+        return voluntario
+    }
+
+    // ✅ NUEVO: Obtener voluntario por Pasaporte
+    fun obtenerPorPasaporte(pasaporte: String): Voluntario? {
+        val db = dbHelper.readableDatabase
+        val cursor: Cursor = db.rawQuery(
+            "SELECT * FROM voluntarios WHERE pasaporte = ? AND activo = 1 LIMIT 1",
+            arrayOf(pasaporte)
         )
 
         var voluntario: Voluntario? = null
@@ -138,10 +173,10 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         val searchTerm = "%$termino%"
         val cursor: Cursor = db.rawQuery(
             """SELECT * FROM voluntarios 
-               WHERE (nombre LIKE ? OR cedula LIKE ? OR municipio LIKE ?) 
+               WHERE (nombre LIKE ? OR cedula LIKE ? OR pasaporte LIKE ? OR municipio LIKE ?) 
                AND activo = 1 
                ORDER BY nombre""",
-            arrayOf(searchTerm, searchTerm, searchTerm)
+            arrayOf(searchTerm, searchTerm, searchTerm, searchTerm)
         )
 
         with(cursor) {
@@ -164,12 +199,15 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             put("caserio_barrio_colonia", voluntario.caserio_barrio_colonia)
             put("telefono", voluntario.telefono)
             put("email", voluntario.email)
+            put("tipo_documento", voluntario.tipo_documento) // ✅ NUEVO
             put("cedula", voluntario.cedula)
+            put("pasaporte", voluntario.pasaporte) // ✅ NUEVO
             put("fecha_nacimiento", voluntario.fecha_nacimiento)
             put("genero", voluntario.genero)
             put("tipo_usuario", voluntario.tipo_usuario)
             put("experiencia_años", voluntario.experiencia_años)
             put("observaciones", voluntario.observaciones)
+            put("fotografia", voluntario.fotografia) // ✅ NUEVO
             put("activo", if (voluntario.activo) 1 else 0)
             put("fecha_modificacion", System.currentTimeMillis())
         }
@@ -213,7 +251,17 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             caserio_barrio_colonia = cursor.getString(cursor.getColumnIndexOrThrow("caserio_barrio_colonia")) ?: "",
             telefono = cursor.getString(cursor.getColumnIndexOrThrow("telefono")),
             email = cursor.getString(cursor.getColumnIndexOrThrow("email")),
+            tipo_documento = try {
+                cursor.getString(cursor.getColumnIndexOrThrow("tipo_documento")) ?: "DNI"
+            } catch (e: Exception) {
+                "DNI"
+            },
             cedula = cursor.getString(cursor.getColumnIndexOrThrow("cedula")),
+            pasaporte = try {
+                cursor.getString(cursor.getColumnIndexOrThrow("pasaporte"))
+            } catch (e: Exception) {
+                null
+            },
             fecha_nacimiento = cursor.getString(cursor.getColumnIndexOrThrow("fecha_nacimiento")),
             genero = cursor.getString(cursor.getColumnIndexOrThrow("genero")),
             tipo_usuario = try {
@@ -228,17 +276,19 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
             },
             experiencia_años = if (cursor.isNull(cursor.getColumnIndexOrThrow("experiencia_años"))) null else cursor.getInt(cursor.getColumnIndexOrThrow("experiencia_años")),
             observaciones = cursor.getString(cursor.getColumnIndexOrThrow("observaciones")),
+            fotografia = try {
+                cursor.getString(cursor.getColumnIndexOrThrow("fotografia"))
+            } catch (e: Exception) {
+                null
+            },
             activo = cursor.getInt(cursor.getColumnIndexOrThrow("activo")) == 1,
             fecha_creacion = cursor.getLong(cursor.getColumnIndexOrThrow("fecha_creacion")),
             fecha_modificacion = cursor.getLong(cursor.getColumnIndexOrThrow("fecha_modificacion"))
         )
     }
+
     // ✅ MÉTODOS PARA FIREBASE AUTHENTICATION
 
-    // Obtener voluntario por Firebase UID
-    // ✅ MÉTODOS PARA FIREBASE AUTHENTICATION
-
-    // Obtener voluntario por Firebase UID
     fun obtenerPorFirebaseUid(firebaseUid: String): Voluntario? {
         val db = dbHelper.readableDatabase
         val cursor: Cursor = db.rawQuery(
@@ -254,8 +304,7 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         return voluntario
     }
 
-    // Obtener voluntario por email
-    fun obtenerPorEmail(email: String): Voluntario? {  // ← DEJAR SOLO ESTE
+    fun obtenerPorEmail(email: String): Voluntario? {
         val db = dbHelper.readableDatabase
         val cursor: Cursor = db.rawQuery(
             "SELECT * FROM voluntarios WHERE email = ? AND activo = 1 LIMIT 1",
@@ -270,7 +319,6 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         return voluntario
     }
 
-    // Verificar si existe un email
     fun existeEmail(email: String): Boolean {
         val db = dbHelper.readableDatabase
         val cursor: Cursor = db.rawQuery(
@@ -286,7 +334,6 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         return existe
     }
 
-    // Contar total de usuarios (para verificar si es el primero)
     fun contarTotalUsuarios(): Int {
         val db = dbHelper.readableDatabase
         val cursor: Cursor = db.rawQuery(
@@ -302,7 +349,6 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         return count
     }
 
-    // Obtener solicitudes pendientes de aprobación (para administradores)
     fun obtenerSolicitudesPendientes(): List<Voluntario> {
         val voluntarios = mutableListOf<Voluntario>()
         val db = dbHelper.readableDatabase
@@ -320,7 +366,6 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         return voluntarios
     }
 
-    // Actualizar estado de aprobación
     fun actualizarEstadoAprobacion(id: Long, estado: String): Int {
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {
@@ -329,5 +374,33 @@ class VoluntarioDao(private val dbHelper: AppDatabase) {
         }
 
         return db.update("voluntarios", values, "id = ?", arrayOf(id.toString()))
+    }
+
+    // ✅ NUEVO: Obtener voluntarios con cumpleaños hoy (para felicitaciones automáticas)
+    fun obtenerCumpleañosHoy(): List<Voluntario> {
+        val voluntarios = mutableListOf<Voluntario>()
+        val db = dbHelper.readableDatabase
+
+        // Obtener mes y día actual (formato MM-DD)
+        val calendar = java.util.Calendar.getInstance()
+        val mesActual = String.format("%02d", calendar.get(java.util.Calendar.MONTH) + 1)
+        val diaActual = String.format("%02d", calendar.get(java.util.Calendar.DAY_OF_MONTH))
+        val hoy = "$mesActual-$diaActual"
+
+        val cursor: Cursor = db.rawQuery(
+            """SELECT * FROM voluntarios 
+               WHERE activo = 1 
+               AND substr(fecha_nacimiento, 6, 5) = ?
+               ORDER BY nombre""",
+            arrayOf(hoy)
+        )
+
+        with(cursor) {
+            while (moveToNext()) {
+                voluntarios.add(cursorToVoluntario(this))
+            }
+        }
+        cursor.close()
+        return voluntarios
     }
 }
