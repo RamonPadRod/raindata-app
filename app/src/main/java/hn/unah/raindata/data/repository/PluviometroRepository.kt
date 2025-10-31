@@ -7,9 +7,16 @@ import kotlinx.coroutines.withContext
 
 class PluviometroRepository(private val pluviometroDao: PluviometroDao) {
 
-    suspend fun generarCodigoAutomatico(): String = withContext(Dispatchers.IO) {
-        pluviometroDao.generarCodigoAutomatico()
-    }
+    /**
+     * Genera código automático basado en departamento y municipio seleccionados
+     * @param departamento Nombre del departamento seleccionado
+     * @param municipio Nombre del municipio seleccionado
+     * @return Código en formato XX-YY-ZZZ (ej: 07-03-001)
+     */
+    suspend fun generarCodigoAutomatico(departamento: String, municipio: String): String =
+        withContext(Dispatchers.IO) {
+            pluviometroDao.generarCodigoAutomatico(departamento, municipio)
+        }
 
     suspend fun guardarPluviometro(pluviometro: Pluviometro) = withContext(Dispatchers.IO) {
         pluviometroDao.insertar(pluviometro)

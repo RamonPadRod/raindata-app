@@ -29,9 +29,28 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
         cargarPluviometros()
     }
 
-    fun generarCodigoAutomatico() = viewModelScope.launch {
-        val codigo = repository.generarCodigoAutomatico()
-        _codigoGenerado.value = codigo
+    /**
+     * Genera código automático basado en departamento y municipio
+     * Se llama automáticamente cuando se selecciona departamento Y municipio
+     *
+     * @param departamento Nombre del departamento seleccionado
+     * @param municipio Nombre del municipio seleccionado
+     */
+    fun generarCodigoAutomatico(departamento: String, municipio: String) = viewModelScope.launch {
+        // Solo generar si ambos están seleccionados
+        if (departamento.isNotBlank() && municipio.isNotBlank()) {
+            val codigo = repository.generarCodigoAutomatico(departamento, municipio)
+            _codigoGenerado.value = codigo
+        } else {
+            _codigoGenerado.value = ""
+        }
+    }
+
+    /**
+     * Limpia el código generado (para cuando se cambia departamento/municipio)
+     */
+    fun limpiarCodigo() {
+        _codigoGenerado.value = ""
     }
 
     fun guardarPluviometro(pluviometro: Pluviometro) = viewModelScope.launch {
@@ -63,7 +82,6 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
         _pluviometros.value = pluviometros
     }
 
-    // AGREGAR ESTA FUNCIÓN
     fun eliminarPluviometro(id: String) = viewModelScope.launch {
         repository.eliminarPluviometro(id)
         cargarPluviometros()
