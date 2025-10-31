@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
@@ -25,6 +26,7 @@ import hn.unah.raindata.viewmodel.PluviometroViewModel
 fun ListaPluviometrosScreen(
     viewModel: PluviometroViewModel = viewModel(),
     onAgregarPluviometro: () -> Unit = {},
+    onVerDetalles: (Pluviometro) -> Unit = {}, // ✅ NUEVO CALLBACK
     onEditarPluviometro: (Pluviometro) -> Unit = {}
 ) {
     val pluviometros by viewModel.todosLosPluviometros.observeAsState(emptyList())
@@ -131,6 +133,7 @@ fun ListaPluviometrosScreen(
                     items(pluviometros) { pluviometro ->
                         PluviometroCard(
                             pluviometro = pluviometro,
+                            onVerDetalles = { onVerDetalles(pluviometro) }, // ✅ NUEVO
                             onEdit = {
                                 if (UserSession.canEditPluviometros()) {
                                     onEditarPluviometro(pluviometro)
@@ -176,6 +179,7 @@ fun ListaPluviometrosScreen(
 @Composable
 fun PluviometroCard(
     pluviometro: Pluviometro,
+    onVerDetalles: () -> Unit, // ✅ NUEVO CALLBACK
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     canEdit: Boolean,
@@ -185,7 +189,7 @@ fun PluviometroCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { }
+        onClick = onVerDetalles // ✅ Al hacer clic en la tarjeta, ver detalles
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -206,7 +210,7 @@ fun PluviometroCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Registro: ${pluviometro.numero_registro}",
+                            text = pluviometro.numero_registro,
                             style = MaterialTheme.typography.titleMedium
                         )
                     }
@@ -261,6 +265,15 @@ fun PluviometroCard(
 
                 // Botones de acción
                 Row {
+                    // ✅ NUEVO: Botón de ver detalles
+                    IconButton(onClick = onVerDetalles) {
+                        Icon(
+                            Icons.Default.Visibility,
+                            contentDescription = "Ver detalles",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
                     if (canEdit) {
                         IconButton(onClick = onEdit) {
                             Icon(Icons.Default.Edit, contentDescription = "Editar")

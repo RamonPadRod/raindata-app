@@ -4,24 +4,56 @@ import android.content.ContentValues
 import android.database.Cursor
 import hn.unah.raindata.data.database.AppDatabase
 import hn.unah.raindata.data.database.entities.Pluviometro
+import hn.unah.raindata.data.utils.DepartamentosHonduras
 
 class PluviometroDao(private val dbHelper: AppDatabase) {
 
-    fun generarCodigoAutomatico(): String {
+    /**
+     * Genera código automático basado en departamento y municipio
+     * Formato: XX-YY-ZZZ
+     * XX = Código departamento (01-18)
+     * YY = Código municipio (01-28 según departamento)
+     * ZZZ = Número secuencial (001, 002, 003...)
+     */
+    fun generarCodigoAutomatico(departamento: String, municipio: String): String {
         val db = dbHelper.readableDatabase
+
+        // Obtener códigos de departamento y municipio
+        val codigoDepto = DepartamentosHonduras.obtenerCodigoDepartamento(departamento) ?: "00"
+        val codigoMuni = DepartamentosHonduras.obtenerCodigoMunicipio(departamento, municipio) ?: "00"
+
+        // Buscar el último número secuencial para esta combinación depto-municipio
+        val prefijo = "$codigoDepto-$codigoMuni-%"
         val cursor: Cursor = db.rawQuery(
-            "SELECT MAX(CAST(SUBSTR(numero_registro, 5) AS INTEGER)) as max_num FROM pluviometros",
-            null
+            """
+            SELECT numero_registro 
+            FROM pluviometros 
+            WHERE numero_registro LIKE ? 
+            ORDER BY numero_registro DESC 
+            LIMIT 1
+            """.trimIndent(),
+            arrayOf(prefijo)
         )
 
-        var nuevoNumero = 1
+        var nuevoSecuencial = 1
+
         if (cursor.moveToFirst()) {
-            val maxNum = cursor.getInt(cursor.getColumnIndexOrThrow("max_num"))
-            nuevoNumero = maxNum + 1
+            val ultimoCodigo = cursor.getString(0)
+            // Extraer el número secuencial del formato XX-YY-ZZZ
+            val partes = ultimoCodigo.split("-")
+            if (partes.size == 3) {
+                try {
+                    val ultimoSecuencial = partes[2].toInt()
+                    nuevoSecuencial = ultimoSecuencial + 1
+                } catch (e: NumberFormatException) {
+                    nuevoSecuencial = 1
+                }
+            }
         }
         cursor.close()
 
-        return String.format("PLU-%04d", nuevoNumero)
+        // Formatear el código completo
+        return DepartamentosHonduras.generarCodigoPluviometro(departamento, municipio, nuevoSecuencial)
     }
 
     fun insertar(pluviometro: Pluviometro): Long {
@@ -186,7 +218,7 @@ class PluviometroDao(private val dbHelper: AppDatabase) {
             municipio = cursor.getString(cursor.getColumnIndexOrThrow("municipio")),
             aldea = cursor.getString(cursor.getColumnIndexOrThrow("aldea")),
             caserio_barrio_colonia = cursor.getString(cursor.getColumnIndexOrThrow("caserio_barrio_colonia")),
-            responsable_id = cursor.getLong(cursor.getColumnIndexOrThrow("responsable_id")), // ← CAMBIAR getString a getLong
+            responsable_id = cursor.getLong(cursor.getColumnIndexOrThrow("responsable_id")),
             responsable_nombre = cursor.getString(cursor.getColumnIndexOrThrow("responsable_nombre")),
             observaciones = cursor.getString(cursor.getColumnIndexOrThrow("observaciones")),
             activo = cursor.getInt(cursor.getColumnIndexOrThrow("activo")) == 1,

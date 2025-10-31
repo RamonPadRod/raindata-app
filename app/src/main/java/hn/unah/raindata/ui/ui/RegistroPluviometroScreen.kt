@@ -80,9 +80,17 @@ fun RegistroPluviometroScreen(
         position = CameraPosition.fromLatLngZoom(ubicacionSeleccionada ?: ubicacionPredeterminada, 15f)
     }
 
-    // Generar código al inicio
+    // ✅ GENERAR CÓDIGO AUTOMÁTICAMENTE cuando se selecciona departamento Y municipio
+    LaunchedEffect(departamento, municipio) {
+        if (departamento.isNotBlank() && municipio.isNotBlank()) {
+            pluviometroViewModel.generarCodigoAutomatico(departamento, municipio)
+        } else {
+            pluviometroViewModel.limpiarCodigo()
+        }
+    }
+
+    // Verificar permisos al inicio
     LaunchedEffect(Unit) {
-        pluviometroViewModel.generarCodigoAutomatico()
         permisoUbicacionConcedido = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -191,7 +199,8 @@ fun RegistroPluviometroScreen(
             municipio.isBlank() ||
             aldea.isBlank() ||
             voluntarioSeleccionado == null ||
-            ubicacionSeleccionada == null
+            ubicacionSeleccionada == null ||
+            codigoGenerado.isBlank() // ✅ Validar que el código esté generado
 
     Column(
         modifier = Modifier
@@ -216,13 +225,28 @@ fun RegistroPluviometroScreen(
                     style = MaterialTheme.typography.titleMedium
                 )
 
-                // Código autogenerado (solo lectura)
+                // ✅ CÓDIGO AUTOGENERADO - MOSTRAR EN TIEMPO REAL
                 OutlinedTextField(
                     value = codigoGenerado,
                     onValueChange = { },
                     label = { Text("Código del Pluviómetro") },
                     readOnly = true,
                     enabled = false,
+                    supportingText = {
+                        if (codigoGenerado.isBlank() && departamento.isNotBlank() && municipio.isNotBlank()) {
+                            Text(
+                                text = "Generando código...",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else if (codigoGenerado.isNotBlank()) {
+                            Text(
+                                text = "✓ Código generado: ${DepartamentosHonduras.obtenerCodigoDepartamento(departamento)}-${DepartamentosHonduras.obtenerCodigoMunicipio(departamento, municipio)}-XXX",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else {
+                            Text("Seleccione departamento y municipio para generar el código")
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -295,92 +319,7 @@ fun RegistroPluviometroScreen(
                     style = MaterialTheme.typography.titleMedium
                 )
 
-                // Botón para seleccionar ubicación en mapa
-                Button(
-                    onClick = {
-                        if (!permisoUbicacionConcedido) {
-                            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                        }
-                        mostrarMapa = !mostrarMapa
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.MyLocation, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (mostrarMapa) "Ocultar Mapa" else "Seleccionar Ubicación en Mapa")
-                }
-
-                // Mapa
-                if (mostrarMapa) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp)
-                    ) {
-                        GoogleMap(
-                            modifier = Modifier.fillMaxSize(),
-                            cameraPositionState = cameraPositionState,
-                            properties = MapProperties(
-                                isMyLocationEnabled = permisoUbicacionConcedido
-                            ),
-                            uiSettings = MapUiSettings(
-                                zoomControlsEnabled = true,
-                                myLocationButtonEnabled = permisoUbicacionConcedido
-                            ),
-                            onMapClick = { latLng ->
-                                ubicacionSeleccionada = latLng
-                            }
-                        ) {
-                            ubicacionSeleccionada?.let { ubicacion ->
-                                Marker(
-                                    state = MarkerState(position = ubicacion),
-                                    title = "Ubicación del Pluviómetro"
-                                )
-                            }
-                        }
-                    }
-
-                    if (ubicacionSeleccionada != null) {
-                        Text(
-                            text = "Coordenadas seleccionadas:",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Lat: ${String.format("%.6f", ubicacionSeleccionada!!.latitude)}, " +
-                                    "Lng: ${String.format("%.6f", ubicacionSeleccionada!!.longitude)}",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                }
-
-                // Mensaje de error de coordenadas
-                if (errorCoordenadas != null) {
-                    Text(
-                        text = errorCoordenadas!!,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-
-                OutlinedTextField(
-                    value = direccion,
-                    onValueChange = { direccion = it },
-                    label = { Text("Dirección *") },
-                    isError = errorDireccion != null,
-                    supportingText = {
-                        if (errorDireccion != null) {
-                            Text(
-                                text = errorDireccion!!,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Selector de Departamento
+                // ✅ PRIMERO: Selector de Departamento (IMPORTANTE PARA GENERAR CÓDIGO)
                 ExposedDropdownMenuBox(
                     expanded = expandedDepartamento,
                     onExpandedChange = { expandedDepartamento = it }
@@ -398,6 +337,13 @@ fun RegistroPluviometroScreen(
                                     text = errorDepartamento!!,
                                     color = MaterialTheme.colorScheme.error
                                 )
+                            } else if (departamento.isNotBlank()) {
+                                Text(
+                                    text = "Código: ${DepartamentosHonduras.obtenerCodigoDepartamento(departamento)}",
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                Text("Seleccione primero para generar el código")
                             }
                         },
                         modifier = Modifier
@@ -410,7 +356,17 @@ fun RegistroPluviometroScreen(
                     ) {
                         DepartamentosHonduras.departamentos.forEach { depto ->
                             DropdownMenuItem(
-                                text = { Text(depto) },
+                                text = {
+                                    Row {
+                                        Text(depto)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            "(${DepartamentosHonduras.obtenerCodigoDepartamento(depto)})",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                },
                                 onClick = {
                                     departamento = depto
                                     expandedDepartamento = false
@@ -420,7 +376,7 @@ fun RegistroPluviometroScreen(
                     }
                 }
 
-                // Selector de Municipio
+                // ✅ SEGUNDO: Selector de Municipio (NECESARIO PARA COMPLETAR CÓDIGO)
                 ExposedDropdownMenuBox(
                     expanded = expandedMunicipio,
                     onExpandedChange = { expandedMunicipio = it }
@@ -441,6 +397,13 @@ fun RegistroPluviometroScreen(
                                 )
                             } else if (departamento.isBlank()) {
                                 Text("Primero seleccione un departamento")
+                            } else if (municipio.isNotBlank()) {
+                                Text(
+                                    text = "Código: ${DepartamentosHonduras.obtenerCodigoMunicipio(departamento, municipio)}",
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            } else {
+                                Text("Seleccione para completar el código")
                             }
                         },
                         modifier = Modifier
@@ -459,7 +422,17 @@ fun RegistroPluviometroScreen(
                         } else {
                             municipiosDisponibles.forEach { muni ->
                                 DropdownMenuItem(
-                                    text = { Text(muni) },
+                                    text = {
+                                        Row {
+                                            Text(muni)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                "(${DepartamentosHonduras.obtenerCodigoMunicipio(departamento, muni)})",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    },
                                     onClick = {
                                         municipio = muni
                                         expandedMunicipio = false
@@ -527,6 +500,92 @@ fun RegistroPluviometroScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                OutlinedTextField(
+                    value = direccion,
+                    onValueChange = { direccion = it },
+                    label = { Text("Dirección *") },
+                    isError = errorDireccion != null,
+                    supportingText = {
+                        if (errorDireccion != null) {
+                            Text(
+                                text = errorDireccion!!,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Botón para seleccionar ubicación en mapa
+                Button(
+                    onClick = {
+                        if (!permisoUbicacionConcedido) {
+                            permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
+                        mostrarMapa = !mostrarMapa
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (mostrarMapa) "Ocultar Mapa" else "Seleccionar Ubicación en Mapa")
+                }
+
+                // Mapa
+                if (mostrarMapa) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                    ) {
+                        GoogleMap(
+                            modifier = Modifier.fillMaxSize(),
+                            cameraPositionState = cameraPositionState,
+                            properties = MapProperties(
+                                isMyLocationEnabled = permisoUbicacionConcedido,
+                                mapType = MapType.SATELLITE // ✅ CRÍTICO: Usar capa satelital
+                            ),
+                            uiSettings = MapUiSettings(
+                                zoomControlsEnabled = true,
+                                myLocationButtonEnabled = permisoUbicacionConcedido
+                            ),
+                            onMapClick = { latLng ->
+                                ubicacionSeleccionada = latLng
+                            }
+                        ) {
+                            ubicacionSeleccionada?.let { ubicacion ->
+                                Marker(
+                                    state = MarkerState(position = ubicacion),
+                                    title = "Ubicación del Pluviómetro"
+                                )
+                            }
+                        }
+                    }
+
+                    if (ubicacionSeleccionada != null) {
+                        Text(
+                            text = "Coordenadas seleccionadas:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Lat: ${String.format("%.6f", ubicacionSeleccionada!!.latitude)}, " +
+                                    "Lng: ${String.format("%.6f", ubicacionSeleccionada!!.longitude)}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                // Mensaje de error de coordenadas
+                if (errorCoordenadas != null) {
+                    Text(
+                        text = errorCoordenadas!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
             }
         }
 
@@ -589,7 +648,7 @@ fun RegistroPluviometroScreen(
                     voluntarioSeleccionado = null
                     observaciones = ""
                     ubicacionSeleccionada = null
-                    pluviometroViewModel.generarCodigoAutomatico()
+                    pluviometroViewModel.limpiarCodigo()
                 },
                 modifier = Modifier.weight(1f)
             ) {
@@ -626,7 +685,10 @@ fun RegistroPluviometroScreen(
                         errorBarrio,
                         errorVoluntario,
                         errorDepartamento,
-                        errorMunicipio
+                        errorMunicipio,
+                        if (codigoGenerado.isBlank() && departamento.isNotBlank() && municipio.isNotBlank()) {
+                            "Esperando generación de código..."
+                        } else null
                     ).forEach { error ->
                         Text(
                             text = "• $error",

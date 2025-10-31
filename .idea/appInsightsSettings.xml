@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="hn.unah.raindata" />
+                  <option name="mobileSdkAppId" value="1:625719842005:android:ecbb476f2ce9326f1d7e5c" />
+                  <option name="projectId" value="raindata-ea3f1" />
+                  <option name="projectNumber" value="625719842005" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
