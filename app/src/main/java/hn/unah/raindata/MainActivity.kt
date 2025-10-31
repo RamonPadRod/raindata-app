@@ -1,7 +1,9 @@
 package hn.unah.raindata
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
@@ -15,6 +17,8 @@ import hn.unah.raindata.viewmodel.AuthViewModel
 import hn.unah.raindata.viewmodel.PluviometroViewModel
 import hn.unah.raindata.viewmodel.VoluntarioViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 // Enum para manejar las pantallas
@@ -53,7 +57,93 @@ class MainActivity : ComponentActivity() {
                 var emailRegistrado by remember { mutableStateOf("") }
                 var firebaseUidRegistrado by remember { mutableStateOf("") }
                 var esPrimerUsuario by remember { mutableStateOf(false) }
-                var pluviometroSeleccionado by remember { mutableStateOf<Pluviometro?>(null) } // ✅ NUEVO
+                var pluviometroSeleccionado by remember { mutableStateOf<Pluviometro?>(null) }
+
+                // ✅ NUEVO: Control para doble tap de salida
+                var intentosSalir by remember { mutableStateOf(0) }
+                val scope = rememberCoroutineScope()
+
+                // ✅ NUEVO: Función para manejar doble tap de salida
+                fun manejarSalida() {
+                    if (intentosSalir == 0) {
+                        // Primer tap: mostrar mensaje
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Presiona atrás nuevamente para salir",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        intentosSalir = 1
+
+                        // Resetear después de 2 segundos
+                        scope.launch {
+                            delay(2000)
+                            intentosSalir = 0
+                        }
+                    } else {
+                        // Segundo tap: salir de la app
+                        finish()
+                    }
+                }
+
+                // ✅ NUEVO: Manejo inteligente del botón Atrás
+                BackHandler(enabled = true) {
+                    when (pantallaActual) {
+                        // Pantallas de autenticación (LOGIN, REGISTRO, RECUPERAR_PASSWORD)
+                        Pantalla.LOGIN -> {
+                            manejarSalida()
+                        }
+
+                        Pantalla.REGISTRO -> {
+                            pantallaActual = Pantalla.LOGIN
+                        }
+
+                        Pantalla.RECUPERAR_PASSWORD -> {
+                            pantallaActual = Pantalla.LOGIN
+                        }
+
+                        // Pantalla principal (HOME) - doble tap para salir
+                        Pantalla.HOME -> {
+                            manejarSalida()
+                        }
+
+                        // Listas principales - volver a HOME
+                        Pantalla.LISTA_VOLUNTARIOS,
+                        Pantalla.LISTA_PLUVIOMETROS,
+                        Pantalla.LISTA_DATOS_METEOROLOGICOS -> {
+                            pantallaActual = Pantalla.HOME
+                        }
+
+                        // Formularios de registro - volver a lista correspondiente
+                        Pantalla.REGISTRO_VOLUNTARIO -> {
+                            if (UserSession.isLoggedIn()) {
+                                pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                            } else {
+                                // Si está en registro inicial, volver a LOGIN
+                                authViewModel.cerrarSesion()
+                                pantallaActual = Pantalla.LOGIN
+                            }
+                        }
+
+                        Pantalla.REGISTRO_PLUVIOMETRO -> {
+                            pantallaActual = Pantalla.LISTA_PLUVIOMETROS
+                        }
+
+                        Pantalla.REGISTRO_DATO_METEOROLOGICO -> {
+                            pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                        }
+
+                        // Detalles de pluviómetro - volver a lista
+                        Pantalla.DETALLES_PLUVIOMETRO -> {
+                            pantallaActual = Pantalla.LISTA_PLUVIOMETROS
+                            pluviometroSeleccionado = null
+                        }
+
+                        // Editar pluviómetro - volver a detalles
+                        Pantalla.EDITAR_PLUVIOMETRO -> {
+                            pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
+                        }
+                    }
+                }
 
                 // Verificar si hay usuarios al iniciar
                 LaunchedEffect(Unit) {
