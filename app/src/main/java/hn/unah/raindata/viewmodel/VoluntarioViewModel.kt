@@ -48,7 +48,7 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    private fun cargarVoluntarios() = viewModelScope.launch {
+    fun cargarVoluntarios() = viewModelScope.launch {
         val voluntarios = repository.obtenerVoluntarios()
         _voluntarios.value = voluntarios
     }

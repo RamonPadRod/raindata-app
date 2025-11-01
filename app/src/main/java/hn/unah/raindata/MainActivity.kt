@@ -14,6 +14,7 @@ import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.ui.ui.*
 import hn.unah.raindata.ui.theme.RainDataTheme
 import hn.unah.raindata.viewmodel.AuthViewModel
+import hn.unah.raindata.viewmodel.DatoMeteorologicoViewModel
 import hn.unah.raindata.viewmodel.PluviometroViewModel
 import hn.unah.raindata.viewmodel.VoluntarioViewModel
 import kotlinx.coroutines.Dispatchers
@@ -31,10 +32,12 @@ enum class Pantalla {
     REGISTRO_VOLUNTARIO,
     LISTA_PLUVIOMETROS,
     REGISTRO_PLUVIOMETRO,
-    DETALLES_PLUVIOMETRO,      // ✅ NUEVO
-    EDITAR_PLUVIOMETRO,         // ✅ NUEVO
+    DETALLES_PLUVIOMETRO,
+    EDITAR_PLUVIOMETRO,
     LISTA_DATOS_METEOROLOGICOS,
-    REGISTRO_DATO_METEOROLOGICO
+    REGISTRO_DATO_METEOROLOGICO,
+    DETALLES_DATO_METEOROLOGICO,
+    EDITAR_DATO_METEOROLOGICO
 }
 
 class MainActivity : ComponentActivity() {
@@ -52,95 +55,84 @@ class MainActivity : ComponentActivity() {
                 val authViewModel: AuthViewModel = viewModel()
                 val voluntarioViewModel: VoluntarioViewModel = viewModel()
                 val pluviometroViewModel: PluviometroViewModel = viewModel()
+                val datoMeteorologicoViewModel: DatoMeteorologicoViewModel = viewModel()
 
                 var pantallaActual by remember { mutableStateOf(Pantalla.LOGIN) }
                 var emailRegistrado by remember { mutableStateOf("") }
                 var firebaseUidRegistrado by remember { mutableStateOf("") }
                 var esPrimerUsuario by remember { mutableStateOf(false) }
                 var pluviometroSeleccionado by remember { mutableStateOf<Pluviometro?>(null) }
+                var datoMeteorologicoIdSeleccionado by remember { mutableStateOf<String?>(null) }
 
-                // ✅ NUEVO: Control para doble tap de salida
+                // Control para doble tap de salida
                 var intentosSalir by remember { mutableStateOf(0) }
                 val scope = rememberCoroutineScope()
 
-                // ✅ NUEVO: Función para manejar doble tap de salida
+                // Función para manejar doble tap de salida
                 fun manejarSalida() {
                     if (intentosSalir == 0) {
-                        // Primer tap: mostrar mensaje
                         Toast.makeText(
                             this@MainActivity,
                             "Presiona atrás nuevamente para salir",
                             Toast.LENGTH_SHORT
                         ).show()
                         intentosSalir = 1
-
-                        // Resetear después de 2 segundos
                         scope.launch {
                             delay(2000)
                             intentosSalir = 0
                         }
                     } else {
-                        // Segundo tap: salir de la app
                         finish()
                     }
                 }
 
-                // ✅ NUEVO: Manejo inteligente del botón Atrás
+                // Manejo inteligente del botón Atrás
                 BackHandler(enabled = true) {
                     when (pantallaActual) {
-                        // Pantallas de autenticación (LOGIN, REGISTRO, RECUPERAR_PASSWORD)
                         Pantalla.LOGIN -> {
                             manejarSalida()
                         }
-
                         Pantalla.REGISTRO -> {
                             pantallaActual = Pantalla.LOGIN
                         }
-
                         Pantalla.RECUPERAR_PASSWORD -> {
                             pantallaActual = Pantalla.LOGIN
                         }
-
-                        // Pantalla principal (HOME) - doble tap para salir
                         Pantalla.HOME -> {
                             manejarSalida()
                         }
-
-                        // Listas principales - volver a HOME
                         Pantalla.LISTA_VOLUNTARIOS,
                         Pantalla.LISTA_PLUVIOMETROS,
                         Pantalla.LISTA_DATOS_METEOROLOGICOS -> {
                             pantallaActual = Pantalla.HOME
                         }
-
-                        // Formularios de registro - volver a lista correspondiente
                         Pantalla.REGISTRO_VOLUNTARIO -> {
                             if (UserSession.isLoggedIn()) {
                                 pantallaActual = Pantalla.LISTA_VOLUNTARIOS
                             } else {
-                                // Si está en registro inicial, volver a LOGIN
                                 authViewModel.cerrarSesion()
                                 pantallaActual = Pantalla.LOGIN
                             }
                         }
-
                         Pantalla.REGISTRO_PLUVIOMETRO -> {
                             pantallaActual = Pantalla.LISTA_PLUVIOMETROS
                         }
-
                         Pantalla.REGISTRO_DATO_METEOROLOGICO -> {
                             pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                         }
-
-                        // Detalles de pluviómetro - volver a lista
                         Pantalla.DETALLES_PLUVIOMETRO -> {
                             pantallaActual = Pantalla.LISTA_PLUVIOMETROS
                             pluviometroSeleccionado = null
                         }
-
-                        // Editar pluviómetro - volver a detalles
                         Pantalla.EDITAR_PLUVIOMETRO -> {
                             pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
+                        }
+                        Pantalla.DETALLES_DATO_METEOROLOGICO -> {
+                            pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                            datoMeteorologicoIdSeleccionado = null
+                        }
+                        Pantalla.EDITAR_DATO_METEOROLOGICO -> {
+                            pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
                         }
                     }
                 }
@@ -159,32 +151,23 @@ class MainActivity : ComponentActivity() {
                         LoginScreen(
                             authViewModel = authViewModel,
                             onLoginSuccess = { firebaseUid ->
-                                // Buscar usuario en Room por Firebase UID
                                 val voluntarioDao = database.getVoluntarioDao()
                                 val voluntario = voluntarioDao.obtenerPorFirebaseUid(firebaseUid)
 
                                 if (voluntario != null) {
-                                    // Verificar estado de aprobación
                                     when (voluntario.estado_aprobacion) {
                                         "Aprobado" -> {
                                             UserSession.login(voluntario)
                                             pantallaActual = Pantalla.HOME
                                         }
-
                                         "Pendiente" -> {
-                                            // Mostrar mensaje de cuenta pendiente
                                             authViewModel.cerrarSesion()
-                                            // TODO: Mostrar un diálogo informando que está pendiente
                                         }
-
                                         "Rechazado" -> {
-                                            // Mostrar mensaje de cuenta rechazada
                                             authViewModel.cerrarSesion()
-                                            // TODO: Mostrar un diálogo informando que fue rechazada
                                         }
                                     }
                                 } else {
-                                    // Usuario no existe en Room, ir a completar registro
                                     pantallaActual = Pantalla.REGISTRO
                                 }
                             },
@@ -229,10 +212,12 @@ class MainActivity : ComponentActivity() {
                                 Pantalla.REGISTRO_VOLUNTARIO -> "REGISTRO_VOLUNTARIO"
                                 Pantalla.LISTA_PLUVIOMETROS -> "PLUVIOMETROS"
                                 Pantalla.REGISTRO_PLUVIOMETRO -> "REGISTRO_PLUVIOMETRO"
-                                Pantalla.DETALLES_PLUVIOMETRO -> "PLUVIOMETROS"      // ✅ NUEVO
-                                Pantalla.EDITAR_PLUVIOMETRO -> "PLUVIOMETROS"         // ✅ NUEVO
+                                Pantalla.DETALLES_PLUVIOMETRO -> "PLUVIOMETROS"
+                                Pantalla.EDITAR_PLUVIOMETRO -> "PLUVIOMETROS"
                                 Pantalla.LISTA_DATOS_METEOROLOGICOS -> "DATOS_METEOROLOGICOS"
                                 Pantalla.REGISTRO_DATO_METEOROLOGICO -> "REGISTRO_DATO_METEOROLOGICO"
+                                Pantalla.DETALLES_DATO_METEOROLOGICO -> "DATOS_METEOROLOGICOS"
+                                Pantalla.EDITAR_DATO_METEOROLOGICO -> "DATOS_METEOROLOGICOS"
                                 else -> "HOME"
                             },
                             onNavigateToHome = {
@@ -279,8 +264,15 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
+                                // ✅ CORREGIDO: LISTA_VOLUNTARIOS con recarga explícita
                                 Pantalla.LISTA_VOLUNTARIOS -> {
+                                    // ✅ CRÍTICO: Recargar cada vez que se entra a la pantalla
+                                    LaunchedEffect(pantallaActual) {
+                                        voluntarioViewModel.cargarVoluntarios()
+                                    }
+
                                     ListaVoluntariosScreen(
+                                        viewModel = voluntarioViewModel,
                                         onAgregarVoluntario = {
                                             if (UserSession.canCreateVoluntarios()) {
                                                 pantallaActual = Pantalla.REGISTRO_VOLUNTARIO
@@ -292,68 +284,76 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
+                                // ✅ CORREGIDO: REGISTRO_VOLUNTARIO con recarga después de guardar
                                 Pantalla.REGISTRO_VOLUNTARIO -> {
-                                    var intentarLogin by remember { mutableStateOf(false) }
-                                    var tipoUsuarioGuardado by remember { mutableStateOf("") }
-
-                                    // Login automático después de guardar
-                                    LaunchedEffect(intentarLogin) {
-                                        if (intentarLogin) {
-                                            withContext(Dispatchers.IO) {
-                                                try {
-                                                    val voluntarioDao = database.getVoluntarioDao()
-                                                    val voluntario = voluntarioDao.obtenerPorEmail(emailRegistrado)
-
-                                                    // Actualizar si ya no es el primer usuario
-                                                    val totalUsuarios = voluntarioDao.contarTotalUsuarios()
-                                                    esPrimerUsuario = totalUsuarios == 0
-
-                                                    withContext(Dispatchers.Main) {
-                                                        if (voluntario != null) {
-                                                            // Login automático exitoso
-                                                            UserSession.login(voluntario)
-
-                                                            // Redirigir según rol
-                                                            when (tipoUsuarioGuardado) {
-                                                                "Administrador" -> {
-                                                                    pantallaActual = Pantalla.HOME
-                                                                }
-                                                                "Voluntario" -> {
-                                                                    pantallaActual = Pantalla.HOME
-                                                                }
-                                                                "Observador" -> {
-                                                                    pantallaActual = Pantalla.HOME
-                                                                }
-                                                                else -> {
-                                                                    pantallaActual = Pantalla.LOGIN
-                                                                }
-                                                            }
-                                                        } else {
-                                                            pantallaActual = Pantalla.LOGIN
-                                                        }
-                                                    }
-                                                } catch (e: Exception) {
-                                                    withContext(Dispatchers.Main) {
-                                                        pantallaActual = Pantalla.LOGIN
-                                                    }
-                                                }
-                                            }
-                                            intentarLogin = false
-                                        }
-                                    }
-
                                     RegistroVoluntarioScreen(
+                                        viewModel = voluntarioViewModel,
                                         emailPrecargado = emailRegistrado,
                                         firebaseUid = firebaseUidRegistrado,
                                         onVoluntarioGuardado = { tipoUsuario ->
-                                            tipoUsuarioGuardado = tipoUsuario
-                                            intentarLogin = true
+                                            // ✅ SOLUCIÓN: Lanzar coroutine secuencial
+                                            scope.launch {
+                                                // 1. Esperar a que se complete el guardado en BD
+                                                delay(500)
+
+                                                // 2. Recargar explícitamente la lista de voluntarios
+                                                voluntarioViewModel.cargarVoluntarios()
+
+                                                // 3. Esperar a que se complete la recarga
+                                                delay(500)
+
+                                                // 4. Ahora sí, buscar el voluntario en BD
+                                                withContext(Dispatchers.IO) {
+                                                    try {
+                                                        val voluntarioDao = database.getVoluntarioDao()
+                                                        val voluntario = voluntarioDao.obtenerPorEmail(emailRegistrado)
+
+                                                        // Actualizar contador
+                                                        val totalUsuarios = voluntarioDao.contarTotalUsuarios()
+
+                                                        withContext(Dispatchers.Main) {
+                                                            esPrimerUsuario = totalUsuarios == 0
+
+                                                            if (voluntario != null) {
+                                                                // Login automático
+                                                                UserSession.login(voluntario)
+
+                                                                // Redirigir según rol
+                                                                when (tipoUsuario) {
+                                                                    "Administrador", "Voluntario", "Observador" -> {
+                                                                        pantallaActual = Pantalla.HOME
+                                                                    }
+                                                                    else -> {
+                                                                        pantallaActual = Pantalla.LOGIN
+                                                                    }
+                                                                }
+                                                            } else {
+                                                                Toast.makeText(
+                                                                    this@MainActivity,
+                                                                    "Error: No se pudo cargar el voluntario",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                                pantallaActual = Pantalla.LOGIN
+                                                            }
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        withContext(Dispatchers.Main) {
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                "Error: ${e.message}",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                            pantallaActual = Pantalla.LOGIN
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         },
                                         soloAdministrador = esPrimerUsuario
                                     )
                                 }
 
-                                // ✅ LISTA DE PLUVIÓMETROS - ACTUALIZADO
+                                // LISTA DE PLUVIÓMETROS
                                 Pantalla.LISTA_PLUVIOMETROS -> {
                                     ListaPluviometrosScreen(
                                         viewModel = pluviometroViewModel,
@@ -373,7 +373,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
-                                // ✅ REGISTRO DE PLUVIÓMETRO
+                                // REGISTRO DE PLUVIÓMETRO
                                 Pantalla.REGISTRO_PLUVIOMETRO -> {
                                     RegistroPluviometroScreen(
                                         pluviometroViewModel = pluviometroViewModel,
@@ -384,7 +384,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
 
-                                // ✅ NUEVO: DETALLES DE PLUVIÓMETRO
+                                // DETALLES DE PLUVIÓMETRO
                                 Pantalla.DETALLES_PLUVIOMETRO -> {
                                     pluviometroSeleccionado?.let { pluviometro ->
                                         DetallesPluviometroScreen(
@@ -403,7 +403,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
 
-                                // ✅ NUEVO: EDITAR PLUVIÓMETRO
+                                // EDITAR PLUVIÓMETRO
                                 Pantalla.EDITAR_PLUVIOMETRO -> {
                                     pluviometroSeleccionado?.let { pluviometro ->
                                         EditarPluviometroScreen(
@@ -420,21 +420,32 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
 
+                                // LISTA DE DATOS METEOROLÓGICOS
                                 Pantalla.LISTA_DATOS_METEOROLOGICOS -> {
                                     ListaDatosMeteorologicosScreen(
+                                        viewModel = datoMeteorologicoViewModel,
                                         onAgregarDato = {
                                             if (UserSession.canCreateDatosMeteorologicos()) {
                                                 pantallaActual = Pantalla.REGISTRO_DATO_METEOROLOGICO
                                             }
                                         },
+                                        onVerDetalles = { dato ->
+                                            datoMeteorologicoIdSeleccionado = dato.id
+                                            pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
+                                        },
                                         onEditarDato = { dato ->
-                                            // TODO: Implementar edición de datos meteorológicos
+                                            datoMeteorologicoIdSeleccionado = dato.id
+                                            pantallaActual = Pantalla.EDITAR_DATO_METEOROLOGICO
                                         }
                                     )
                                 }
 
+                                // REGISTRO DE DATO METEOROLÓGICO
                                 Pantalla.REGISTRO_DATO_METEOROLOGICO -> {
                                     RegistroDatoMeteorologicoScreen(
+                                        datoMeteorologicoViewModel = datoMeteorologicoViewModel,
+                                        voluntarioViewModel = voluntarioViewModel,
+                                        pluviometroViewModel = pluviometroViewModel,
                                         onDatoGuardado = {
                                             pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                                         },
@@ -442,6 +453,44 @@ class MainActivity : ComponentActivity() {
                                             pantallaActual = Pantalla.REGISTRO_PLUVIOMETRO
                                         }
                                     )
+                                }
+
+                                // DETALLES DE DATO METEOROLÓGICO
+                                Pantalla.DETALLES_DATO_METEOROLOGICO -> {
+                                    datoMeteorologicoIdSeleccionado?.let { datoId ->
+                                        DetallesDatoMeteorologicoScreen(
+                                            datoId = datoId,
+                                            viewModel = datoMeteorologicoViewModel,
+                                            onNavigateBack = {
+                                                pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                                            },
+                                            onEditar = {
+                                                pantallaActual = Pantalla.EDITAR_DATO_METEOROLOGICO
+                                            },
+                                            onEliminar = {
+                                                datoMeteorologicoViewModel.eliminarDato(datoId)
+                                                pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                                            }
+                                        )
+                                    }
+                                }
+
+                                // EDITAR DATO METEOROLÓGICO
+                                Pantalla.EDITAR_DATO_METEOROLOGICO -> {
+                                    datoMeteorologicoIdSeleccionado?.let { datoId ->
+                                        EditarDatoMeteorologicoScreen(
+                                            datoId = datoId,
+                                            datoMeteorologicoViewModel = datoMeteorologicoViewModel,
+                                            voluntarioViewModel = voluntarioViewModel,
+                                            pluviometroViewModel = pluviometroViewModel,
+                                            onDatoActualizado = {
+                                                pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                                            },
+                                            onNavigateBack = {
+                                                pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
+                                            }
+                                        )
+                                    }
                                 }
 
                                 else -> {}

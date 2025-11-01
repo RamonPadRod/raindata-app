@@ -32,6 +32,15 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
         }
     }
 
+    fun obtenerDatoPorId(id: String): LiveData<DatoMeteorologico?> {
+        val dato = MutableLiveData<DatoMeteorologico?>()
+        viewModelScope.launch(Dispatchers.IO) {
+            val resultado = datoMeteorologicoDao.obtenerPorId(id)
+            dato.postValue(resultado)
+        }
+        return dato
+    }
+
     fun guardarDato(dato: DatoMeteorologico) {
         viewModelScope.launch(Dispatchers.IO) {
             datoMeteorologicoDao.insertar(dato)
@@ -71,14 +80,9 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
         return datos
     }
 
-    // ✅ NUEVAS FUNCIONES DE VALIDACIÓN
-
-    suspend fun existeRegistroEnFecha(pluviometroId: String, fecha: String): Boolean {
-        return datoMeteorologicoDao.existeRegistroEnFecha(pluviometroId, fecha)
-    }
-
-    fun validarFecha(fecha: String): String? {
-        if (fecha.isBlank()) return "La fecha es obligatoria"
+    // Validación de fecha de lectura (±7 días)
+    fun validarFechaLectura(fecha: String): String? {
+        if (fecha.isBlank()) return "La fecha de lectura es obligatoria"
 
         return try {
             val formato = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -98,8 +102,8 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
             val en7Dias = calendario.time
 
             when {
-                fechaIngresada.before(hace7Dias) -> "No se pueden registrar fechas con más de 7 días de atraso"
-                fechaIngresada.after(en7Dias) -> "No se pueden registrar fechas con más de 7 días de anticipación"
+                fechaIngresada.before(hace7Dias) -> "La fecha de lectura no puede ser anterior a 7 días"
+                fechaIngresada.after(en7Dias) -> "La fecha de lectura no puede ser posterior a 7 días"
                 else -> null
             }
         } catch (e: Exception) {
@@ -134,13 +138,12 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
     }
 
     fun validarTemperaturaMaxima(valor: String): String? {
-        if (valor.isBlank()) return "La temperatura máxima es obligatoria"
+        if (valor.isBlank()) return null // Las temperaturas son opcionales
 
         val temp = valor.toDoubleOrNull()
             ?: return "Debe ingresar un número válido"
 
         return when {
-            temp < 0 -> "La temperatura no puede ser negativa"
             temp < 10 -> "Temp. máxima muy baja (mín. 10°C)"
             temp > 50 -> "Temp. máxima fuera de rango (máx. 50°C)"
             else -> null
@@ -148,7 +151,7 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
     }
 
     fun validarTemperaturaMinima(valor: String): String? {
-        if (valor.isBlank()) return "La temperatura mínima es obligatoria"
+        if (valor.isBlank()) return null // Las temperaturas son opcionales
 
         val temp = valor.toDoubleOrNull()
             ?: return "Debe ingresar un número válido"
@@ -177,5 +180,13 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
         return if (valor.length > 500) {
             "Las observaciones no pueden exceder 500 caracteres"
         } else null
+    }
+
+    fun validarCondicionesDia(condiciones: List<String>): String? {
+        return when {
+            condiciones.isEmpty() -> "Debe seleccionar al menos una condición"
+            condiciones.size > 3 -> "Puede seleccionar máximo 3 condiciones"
+            else -> null
+        }
     }
 }
