@@ -1,15 +1,18 @@
 package hn.unah.raindata
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
+import androidx.lifecycle.viewmodel.compose.viewModel
+import hn.unah.raindata.data.database.AppDatabase
+import hn.unah.raindata.data.database.entities.Pluviometro
 import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.ui.ui.*
 import hn.unah.raindata.ui.theme.RainDataTheme
-<<<<<<< Updated upstream
-=======
 import hn.unah.raindata.viewmodel.AuthViewModel
 import hn.unah.raindata.viewmodel.DatoMeteorologicoViewModel
 import hn.unah.raindata.viewmodel.PluviometroViewModel
@@ -18,21 +21,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
->>>>>>> Stashed changes
 
 // Enum para manejar las pantallas
 enum class Pantalla {
     LOGIN,
+    REGISTRO,
+    RECUPERAR_PASSWORD,
     HOME,
     LISTA_VOLUNTARIOS,
     REGISTRO_VOLUNTARIO,
     LISTA_PLUVIOMETROS,
     REGISTRO_PLUVIOMETRO,
-<<<<<<< Updated upstream
-=======
     DETALLES_PLUVIOMETRO,
     EDITAR_PLUVIOMETRO,
->>>>>>> Stashed changes
     LISTA_DATOS_METEOROLOGICOS,
     REGISTRO_DATO_METEOROLOGICO,
     DETALLES_DATO_METEOROLOGICO,
@@ -40,14 +41,17 @@ enum class Pantalla {
 }
 
 class MainActivity : ComponentActivity() {
+    private lateinit var database: AppDatabase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Inicializar base de datos
+        database = AppDatabase.getDatabase(this)
+
         setContent {
             RainDataTheme {
-<<<<<<< Updated upstream
-                var pantallaActual by remember { mutableStateOf(Pantalla.LOGIN) }
-=======
                 val authViewModel: AuthViewModel = viewModel()
                 val voluntarioViewModel: VoluntarioViewModel = viewModel()
                 val pluviometroViewModel: PluviometroViewModel = viewModel()
@@ -141,15 +145,10 @@ class MainActivity : ComponentActivity() {
                         esPrimerUsuario = totalUsuarios == 0
                     }
                 }
->>>>>>> Stashed changes
 
                 when (pantallaActual) {
                     Pantalla.LOGIN -> {
                         LoginScreen(
-<<<<<<< Updated upstream
-                            onLoginSuccess = {
-                                pantallaActual = Pantalla.HOME
-=======
                             authViewModel = authViewModel,
                             onLoginSuccess = { firebaseUid ->
                                 val voluntarioDao = database.getVoluntarioDao()
@@ -171,27 +170,50 @@ class MainActivity : ComponentActivity() {
                                 } else {
                                     pantallaActual = Pantalla.REGISTRO
                                 }
->>>>>>> Stashed changes
                             },
-                            onNavigateToRegistroAdmin = {
+                            onNavigateToRegistro = {
+                                pantallaActual = Pantalla.REGISTRO
+                            },
+                            onNavigateToRecuperarPassword = {
+                                pantallaActual = Pantalla.RECUPERAR_PASSWORD
+                            }
+                        )
+                    }
+
+                    Pantalla.REGISTRO -> {
+                        RegistroScreen(
+                            authViewModel = authViewModel,
+                            onRegistroExitoso = { firebaseUid, email ->
+                                emailRegistrado = email
+                                firebaseUidRegistrado = firebaseUid
                                 pantallaActual = Pantalla.REGISTRO_VOLUNTARIO
+                            },
+                            onNavigateToLogin = {
+                                pantallaActual = Pantalla.LOGIN
+                            },
+                            esPrimerUsuario = esPrimerUsuario
+                        )
+                    }
+
+                    Pantalla.RECUPERAR_PASSWORD -> {
+                        RecuperarPasswordScreen(
+                            authViewModel = authViewModel,
+                            onNavigateBack = {
+                                pantallaActual = Pantalla.LOGIN
                             }
                         )
                     }
 
                     else -> {
                         MainLayout(
-                            currentScreen = when(pantallaActual) {
+                            currentScreen = when (pantallaActual) {
                                 Pantalla.HOME -> "HOME"
                                 Pantalla.LISTA_VOLUNTARIOS -> "VOLUNTARIOS"
                                 Pantalla.REGISTRO_VOLUNTARIO -> "REGISTRO_VOLUNTARIO"
                                 Pantalla.LISTA_PLUVIOMETROS -> "PLUVIOMETROS"
                                 Pantalla.REGISTRO_PLUVIOMETRO -> "REGISTRO_PLUVIOMETRO"
-<<<<<<< Updated upstream
-=======
                                 Pantalla.DETALLES_PLUVIOMETRO -> "PLUVIOMETROS"
                                 Pantalla.EDITAR_PLUVIOMETRO -> "PLUVIOMETROS"
->>>>>>> Stashed changes
                                 Pantalla.LISTA_DATOS_METEOROLOGICOS -> "DATOS_METEOROLOGICOS"
                                 Pantalla.REGISTRO_DATO_METEOROLOGICO -> "REGISTRO_DATO_METEOROLOGICO"
                                 Pantalla.DETALLES_DATO_METEOROLOGICO -> "DATOS_METEOROLOGICOS"
@@ -236,6 +258,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onLogout = {
+                                            authViewModel.cerrarSesion()
                                             pantallaActual = Pantalla.LOGIN
                                         }
                                     )
@@ -256,7 +279,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onEditarVoluntario = { voluntario ->
-                                            // Aquí puedes implementar la edición más adelante
+                                            // TODO: Implementar edición de voluntarios
                                         }
                                     )
                                 }
@@ -264,13 +287,6 @@ class MainActivity : ComponentActivity() {
                                 // ✅ CORREGIDO: REGISTRO_VOLUNTARIO con recarga después de guardar
                                 Pantalla.REGISTRO_VOLUNTARIO -> {
                                     RegistroVoluntarioScreen(
-<<<<<<< Updated upstream
-                                        onVoluntarioGuardado = {
-                                            if (UserSession.isLoggedIn()) {
-                                                pantallaActual = Pantalla.LISTA_VOLUNTARIOS
-                                            } else {
-                                                pantallaActual = Pantalla.LOGIN
-=======
                                         viewModel = voluntarioViewModel,
                                         emailPrecargado = emailRegistrado,
                                         firebaseUid = firebaseUidRegistrado,
@@ -331,44 +347,43 @@ class MainActivity : ComponentActivity() {
                                                         }
                                                     }
                                                 }
->>>>>>> Stashed changes
                                             }
                                         },
-                                        soloAdministrador = !UserSession.isLoggedIn()
+                                        soloAdministrador = esPrimerUsuario
                                     )
                                 }
 
-<<<<<<< Updated upstream
-=======
                                 // LISTA DE PLUVIÓMETROS
->>>>>>> Stashed changes
                                 Pantalla.LISTA_PLUVIOMETROS -> {
                                     ListaPluviometrosScreen(
+                                        viewModel = pluviometroViewModel,
                                         onAgregarPluviometro = {
                                             if (UserSession.canCreatePluviometros()) {
                                                 pantallaActual = Pantalla.REGISTRO_PLUVIOMETRO
                                             }
                                         },
+                                        onVerDetalles = { pluviometro ->
+                                            pluviometroSeleccionado = pluviometro
+                                            pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
+                                        },
                                         onEditarPluviometro = { pluviometro ->
-                                            // Aquí puedes implementar la edición más adelante
+                                            pluviometroSeleccionado = pluviometro
+                                            pantallaActual = Pantalla.EDITAR_PLUVIOMETRO
                                         }
                                     )
                                 }
 
-<<<<<<< Updated upstream
-=======
                                 // REGISTRO DE PLUVIÓMETRO
->>>>>>> Stashed changes
                                 Pantalla.REGISTRO_PLUVIOMETRO -> {
                                     RegistroPluviometroScreen(
+                                        pluviometroViewModel = pluviometroViewModel,
+                                        voluntarioViewModel = voluntarioViewModel,
                                         onPluviometroGuardado = {
                                             pantallaActual = Pantalla.LISTA_PLUVIOMETROS
                                         }
                                     )
                                 }
 
-<<<<<<< Updated upstream
-=======
                                 // DETALLES DE PLUVIÓMETRO
                                 Pantalla.DETALLES_PLUVIOMETRO -> {
                                     pluviometroSeleccionado?.let { pluviometro ->
@@ -406,7 +421,6 @@ class MainActivity : ComponentActivity() {
                                 }
 
                                 // LISTA DE DATOS METEOROLÓGICOS
->>>>>>> Stashed changes
                                 Pantalla.LISTA_DATOS_METEOROLOGICOS -> {
                                     ListaDatosMeteorologicosScreen(
                                         viewModel = datoMeteorologicoViewModel,
@@ -420,12 +434,8 @@ class MainActivity : ComponentActivity() {
                                             pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
                                         },
                                         onEditarDato = { dato ->
-<<<<<<< Updated upstream
-                                            // Aquí puedes implementar la edición más adelante
-=======
                                             datoMeteorologicoIdSeleccionado = dato.id
                                             pantallaActual = Pantalla.EDITAR_DATO_METEOROLOGICO
->>>>>>> Stashed changes
                                         }
                                     )
                                 }
@@ -439,18 +449,12 @@ class MainActivity : ComponentActivity() {
                                         onDatoGuardado = {
                                             pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                                         },
-                                        // AGREGADO: Navegación al registro de pluviómetros
                                         onNavegarARegistroPluviometro = {
                                             pantallaActual = Pantalla.REGISTRO_PLUVIOMETRO
                                         }
                                     )
                                 }
 
-<<<<<<< Updated upstream
-                                Pantalla.LOGIN -> {
-                                    // No debería llegar aquí, pero por seguridad
-                                }
-=======
                                 // DETALLES DE DATO METEOROLÓGICO
                                 Pantalla.DETALLES_DATO_METEOROLOGICO -> {
                                     datoMeteorologicoIdSeleccionado?.let { datoId ->
@@ -490,7 +494,6 @@ class MainActivity : ComponentActivity() {
                                 }
 
                                 else -> {}
->>>>>>> Stashed changes
                             }
                         }
                     }
