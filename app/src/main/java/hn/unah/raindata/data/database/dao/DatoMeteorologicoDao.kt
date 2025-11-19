@@ -80,21 +80,12 @@ class DatoMeteorologicoDao(private val dbHelper: AppDatabase) {
         return datos
     }
 
-<<<<<<< Updated upstream
-    fun obtenerPorVoluntario(voluntarioId: String): List<DatoMeteorologico> {
-        val datos = mutableListOf<DatoMeteorologico>()
-        val db = dbHelper.readableDatabase
-        val cursor: Cursor = db.rawQuery(
-            "SELECT * FROM datos_meteorologicos WHERE voluntario_id = ? ORDER BY fecha DESC, hora DESC",
-            arrayOf(voluntarioId)
-=======
     fun obtenerPorVoluntario(voluntarioId: Long): List<DatoMeteorologico> {
         val datos = mutableListOf<DatoMeteorologico>()
         val db = dbHelper.readableDatabase
         val cursor: Cursor = db.rawQuery(
             "SELECT * FROM datos_meteorologicos WHERE voluntario_id = ? ORDER BY fecha_lectura DESC, hora_lectura DESC",
             arrayOf(voluntarioId.toString())
->>>>>>> Stashed changes
         )
 
         with(cursor) {
@@ -167,11 +158,7 @@ class DatoMeteorologicoDao(private val dbHelper: AppDatabase) {
     private fun cursorToDatoMeteorologico(cursor: Cursor): DatoMeteorologico {
         return DatoMeteorologico(
             id = cursor.getString(cursor.getColumnIndexOrThrow("id")),
-<<<<<<< Updated upstream
-            voluntario_id = cursor.getString(cursor.getColumnIndexOrThrow("voluntario_id")),
-=======
             voluntario_id = cursor.getLong(cursor.getColumnIndexOrThrow("voluntario_id")),
->>>>>>> Stashed changes
             voluntario_nombre = cursor.getString(cursor.getColumnIndexOrThrow("voluntario_nombre")),
             pluviometro_id = cursor.getString(cursor.getColumnIndexOrThrow("pluviometro_id")),
             pluviometro_registro = cursor.getString(cursor.getColumnIndexOrThrow("pluviometro_registro")),
