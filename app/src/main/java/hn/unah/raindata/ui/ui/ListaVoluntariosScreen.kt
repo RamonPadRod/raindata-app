@@ -10,7 +10,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -26,7 +25,8 @@ fun ListaVoluntariosScreen(
     onAgregarVoluntario: () -> Unit = {},
     onEditarVoluntario: (Voluntario) -> Unit = {}
 ) {
-    val voluntarios by viewModel.todosLosVoluntarios.observeAsState(emptyList())
+    // ✅ CAMBIO: collectAsState en lugar de observeAsState
+    val voluntarios by viewModel.voluntarios.collectAsState()
     var showNoPermissionDialog by remember { mutableStateOf(false) }
     var noPermissionMessage by remember { mutableStateOf("") }
 
@@ -140,7 +140,17 @@ fun ListaVoluntariosScreen(
                             },
                             onDelete = {
                                 if (UserSession.canDeleteVoluntarios()) {
-                                    viewModel.eliminarVoluntario(voluntario.id)
+                                    // ✅ CAMBIO: Agregar callbacks
+                                    viewModel.eliminarVoluntario(
+                                        firebaseUid = voluntario.firebase_uid,
+                                        onSuccess = {
+                                            // Eliminado exitosamente
+                                        },
+                                        onError = { error ->
+                                            noPermissionMessage = "Error al eliminar: $error"
+                                            showNoPermissionDialog = true
+                                        }
+                                    )
                                 } else {
                                     noPermissionMessage = "No tienes permisos para eliminar voluntarios. Solo los Administradores pueden realizar esta acción."
                                     showNoPermissionDialog = true
@@ -222,7 +232,7 @@ fun VoluntarioCard(
                         )
                     }
 
-                    if (!voluntario.tipo_usuario.isNullOrBlank()) {
+                    if (voluntario.tipo_usuario.isNotBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Surface(
                             color = MaterialTheme.colorScheme.primaryContainer,
@@ -285,4 +295,5 @@ fun VoluntarioCard(
                 }
             }
         )
-    }}
+    }
+}

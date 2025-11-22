@@ -21,6 +21,7 @@ import hn.unah.raindata.data.database.entities.Voluntario
 import hn.unah.raindata.viewmodel.VoluntarioViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import androidx.compose.ui.text.font.FontWeight
 import java.util.*
 
 // ✅ VISUAL TRANSFORMATION PARA DNI
@@ -112,6 +113,20 @@ fun RegistroVoluntarioScreen(
     var aldea by remember { mutableStateOf("") }
     var caserioBarrioColonia by remember { mutableStateOf("") }
     var tipoUsuario by remember { mutableStateOf("") }
+    var esPrimerUsuario by remember { mutableStateOf(false) }
+    var checkingPrimerUsuario by remember { mutableStateOf(true) }
+
+    // ✅ VERIFICAR SI ES EL PRIMER USUARIO AL INICIAR
+    LaunchedEffect(Unit) {
+        esPrimerUsuario = viewModel.esPrimerUsuario()
+
+        if (esPrimerUsuario) {
+            tipoUsuario = "Administrador" // ← Pre-cargar Administrador
+        }
+
+        checkingPrimerUsuario = false
+    }
+
     var expandedTipoUsuario by remember { mutableStateOf(false) }
     var observaciones by remember { mutableStateOf("") }
 
@@ -242,7 +257,14 @@ fun RegistroVoluntarioScreen(
             errorTipoUsuario != null ||
             errorObservaciones != null ||
             errorFechaNacimiento != null ||
-            errorGenero != null
+            errorGenero != null ||
+            fechaNacimiento.isBlank() ||  // ← NUEVO
+            genero.isBlank() ||            // ← NUEVO
+            nombre.isBlank() ||            // ← NUEVO (asegurar nombre)
+            direccion.isBlank() ||         // ← NUEVO (asegurar dirección)
+            departamento.isBlank() ||      // ← NUEVO
+            municipio.isBlank() ||         // ← NUEVO
+            aldea.isBlank()                // ← NUEVO
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -617,16 +639,30 @@ fun RegistroVoluntarioScreen(
                     )
 
                     // TIPO DE USUARIO
-                    if (soloAdministrador) {
+                    if (esPrimerUsuario) {
+                        // ✅ PRIMER USUARIO: Campo deshabilitado mostrando "Administrador"
                         OutlinedTextField(
                             value = "Administrador",
                             onValueChange = { },
                             readOnly = true,
-                            label = { Text("Tipo de Usuario") },
+                            label = { Text("Tipo de Usuario *") },
                             enabled = false,
+                            supportingText = {
+                                Text(
+                                    "Serás el primer administrador del sistema",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledBorderColor = MaterialTheme.colorScheme.primary,
+                                disabledLabelColor = MaterialTheme.colorScheme.primary,
+                                disabledTextColor = MaterialTheme.colorScheme.onSurface
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     } else {
+                        // ✅ USUARIOS POSTERIORES: Dropdown normal
                         ExposedDropdownMenuBox(
                             expanded = expandedTipoUsuario,
                             onExpandedChange = { expandedTipoUsuario = it }
@@ -637,9 +673,9 @@ fun RegistroVoluntarioScreen(
                                 readOnly = true,
                                 label = { Text("Tipo de Usuario *") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTipoUsuario) },
-                                isError = errorTipoUsuario != null && !soloAdministrador,
+                                isError = errorTipoUsuario != null,
                                 supportingText = {
-                                    if (errorTipoUsuario != null && !soloAdministrador) {
+                                    if (errorTipoUsuario != null) {
                                         Text(
                                             text = errorTipoUsuario!!,
                                             color = MaterialTheme.colorScheme.error
@@ -960,6 +996,18 @@ fun RegistroVoluntarioScreen(
                 Button(
                     onClick = {
                         scope.launch {
+                            // ✅ VALIDACIONES DOBLES DE SEGURIDAD
+                            if (fechaNacimiento.isBlank()) {
+                                snackbarHostState.showSnackbar("⚠️ La fecha de nacimiento es obligatoria")
+                                return@launch
+                            }
+
+                            if (genero.isBlank()) {
+                                snackbarHostState.showSnackbar("⚠️ El género es obligatorio")
+                                return@launch
+                            }
+
+                            // ... resto del código (validación DNI/Pasaporte, etc)
                             // Validar según tipo de documento
                             if (tipoDocumento == "DNI") {
                                 val dniLimpio = viewModel.limpiarDNI(dni)
@@ -1003,9 +1051,20 @@ fun RegistroVoluntarioScreen(
                                 observaciones = observaciones.ifBlank { null }
                             )
 
-                            viewModel.guardarVoluntario(voluntario)
-                            snackbarHostState.showSnackbar("✅ Voluntario guardado exitosamente")
-                            onVoluntarioGuardado(tipoUsuario)
+                            viewModel.guardarVoluntario(
+                                voluntario = voluntario,
+                                onSuccess = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("✅ Voluntario guardado exitosamente")
+                                    }
+                                    onVoluntarioGuardado(tipoUsuario)
+                                },
+                                onError = { errorMsg ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("❌ Error: $errorMsg")
+                                    }
+                                }
+                            )
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -1092,6 +1151,7 @@ fun RegistroVoluntarioScreen(
     }
 
     // ✅ DATE PICKER DIALOG
+    // ✅ DATE PICKER DIALOG EN ESPAÑOL
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = System.currentTimeMillis()

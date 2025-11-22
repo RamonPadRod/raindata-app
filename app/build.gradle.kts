@@ -52,14 +52,18 @@ android {
 }
 
 dependencies {
+    // ===== FIREBASE =====
     implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx") // ← NUEVA: Firestore
 
+    // ===== ROOM (MANTENER POR AHORA PARA MIGRACIÓN GRADUAL) =====
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
 
+    // ===== CORE ANDROID =====
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -71,17 +75,18 @@ dependencies {
     implementation(libs.engage.core)
     implementation(libs.androidx.compose.runtime.livedata)
 
+    // ===== COMPOSE & MATERIAL =====
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
-
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
     implementation("androidx.navigation:navigation-compose:2.7.6")
 
-    // NUEVAS DEPENDENCIAS PARA GOOGLE MAPS Y UBICACIÓN
+    // ===== GOOGLE MAPS =====
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.android.gms:play-services-location:21.0.1")
     implementation("com.google.maps.android:maps-compose:4.3.0")
 
+    // ===== TESTING =====
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

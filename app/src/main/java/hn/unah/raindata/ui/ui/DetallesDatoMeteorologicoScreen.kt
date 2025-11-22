@@ -7,42 +7,26 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import hn.unah.raindata.data.database.entities.DatoMeteorologico
 import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.viewmodel.DatoMeteorologicoViewModel
-import java.text.SimpleDateFormat
-import java.util.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetallesDatoMeteorologicoScreen(
-    datoId: String,
-    viewModel: DatoMeteorologicoViewModel = viewModel(),
+    dato: DatoMeteorologico,
+    datoMeteorologicoViewModel: DatoMeteorologicoViewModel,
     onNavigateBack: () -> Unit = {},
-    onEditar: () -> Unit = {},
-    onEliminar: () -> Unit = {}
+    onEditar: () -> Unit = {}
 ) {
-    val dato by viewModel.obtenerDatoPorId(datoId).observeAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
-
-    if (dato == null) {
-        // Mostrar loading o volver
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    val datoActual = dato!!
 
     Scaffold(
         topBar = {
@@ -70,7 +54,8 @@ fun DetallesDatoMeteorologicoScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -80,7 +65,6 @@ fun DetallesDatoMeteorologicoScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header con precipitación
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -99,7 +83,7 @@ fun DetallesDatoMeteorologicoScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "${datoActual.precipitacion} mm",
+                        text = "${dato.precipitacion} mm",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -112,7 +96,6 @@ fun DetallesDatoMeteorologicoScreen(
                 }
             }
 
-            // Información de Fechas
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -131,37 +114,34 @@ fun DetallesDatoMeteorologicoScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Fecha y hora de lectura
                     DetailRow(
                         label = "Fecha de Lectura",
-                        value = datoActual.fecha_lectura,
+                        value = dato.fecha_lectura,
                         icon = Icons.Default.Today
                     )
 
                     DetailRow(
                         label = "Hora de Lectura",
-                        value = datoActual.hora_lectura,
+                        value = dato.hora_lectura,
                         icon = Icons.Default.AccessTime
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Fecha y hora de registro
                     DetailRow(
                         label = "Fecha de Registro",
-                        value = datoActual.fecha_registro,
+                        value = dato.fecha_registro,
                         icon = Icons.Default.EventNote
                     )
 
                     DetailRow(
                         label = "Hora de Registro",
-                        value = datoActual.hora_registro,
+                        value = dato.hora_registro,
                         icon = Icons.Default.Schedule
                     )
                 }
             }
 
-            // Información del Pluviómetro
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -182,19 +162,18 @@ fun DetallesDatoMeteorologicoScreen(
 
                     DetailRow(
                         label = "Código",
-                        value = datoActual.pluviometro_registro,
+                        value = dato.pluviometro_registro,
                         icon = Icons.Default.Code
                     )
 
                     DetailRow(
                         label = "Voluntario Responsable",
-                        value = datoActual.voluntario_nombre,
+                        value = dato.voluntario_nombre,
                         icon = Icons.Default.Person
                     )
                 }
             }
 
-            // Datos Meteorológicos
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -213,13 +192,12 @@ fun DetallesDatoMeteorologicoScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Temperaturas (si existen)
-                    if (datoActual.temperatura_maxima != null || datoActual.temperatura_minima != null) {
+                    if (dato.temperatura_maxima != null || dato.temperatura_minima != null) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            if (datoActual.temperatura_maxima != null) {
+                            if (dato.temperatura_maxima != null) {
                                 Card(
                                     modifier = Modifier.weight(1f),
                                     colors = CardDefaults.cardColors(
@@ -241,7 +219,7 @@ fun DetallesDatoMeteorologicoScreen(
                                             color = MaterialTheme.colorScheme.onErrorContainer
                                         )
                                         Text(
-                                            text = "${datoActual.temperatura_maxima}°C",
+                                            text = "${dato.temperatura_maxima}°C",
                                             style = MaterialTheme.typography.titleLarge,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onErrorContainer
@@ -250,9 +228,11 @@ fun DetallesDatoMeteorologicoScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.width(8.dp))
+                            if (dato.temperatura_maxima != null && dato.temperatura_minima != null) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
 
-                            if (datoActual.temperatura_minima != null) {
+                            if (dato.temperatura_minima != null) {
                                 Card(
                                     modifier = Modifier.weight(1f),
                                     colors = CardDefaults.cardColors(
@@ -274,7 +254,7 @@ fun DetallesDatoMeteorologicoScreen(
                                             color = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
                                         Text(
-                                            text = "${datoActual.temperatura_minima}°C",
+                                            text = "${dato.temperatura_minima}°C",
                                             style = MaterialTheme.typography.titleLarge,
                                             fontWeight = FontWeight.Bold,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -293,7 +273,6 @@ fun DetallesDatoMeteorologicoScreen(
                 }
             }
 
-            // Condiciones del Día
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -312,7 +291,7 @@ fun DetallesDatoMeteorologicoScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    val condiciones = datoActual.condiciones_dia.split("|").filter { it.isNotBlank() }
+                    val condiciones = dato.condiciones_dia.split("|").filter { it.isNotBlank() }
 
                     if (condiciones.isNotEmpty()) {
                         condiciones.forEach { condicion ->
@@ -345,8 +324,7 @@ fun DetallesDatoMeteorologicoScreen(
                 }
             }
 
-            // Observaciones
-            if (!datoActual.observaciones.isNullOrBlank()) {
+            if (!dato.observaciones.isNullOrBlank()) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -366,55 +344,13 @@ fun DetallesDatoMeteorologicoScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = datoActual.observaciones,
+                            text = dato.observaciones,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
             }
 
-            // Información del sistema
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Info,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Información del Sistema",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
-
-                    DetailRow(
-                        label = "ID del Registro",
-                        value = datoActual.id,
-                        icon = Icons.Default.Fingerprint
-                    )
-
-                    DetailRow(
-                        label = "Fecha de Creación",
-                        value = dateFormat.format(Date(datoActual.fecha_creacion)),
-                        icon = Icons.Default.DateRange
-                    )
-
-                    DetailRow(
-                        label = "Última Modificación",
-                        value = dateFormat.format(Date(datoActual.fecha_modificacion)),
-                        icon = Icons.Default.Update
-                    )
-                }
-            }
-
-            // Botones de acción
             if (UserSession.canEditDatosMeteorologicos() || UserSession.canDeleteDatosMeteorologicos()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -449,7 +385,6 @@ fun DetallesDatoMeteorologicoScreen(
         }
     }
 
-    // Diálogo de confirmación de eliminación
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -460,11 +395,11 @@ fun DetallesDatoMeteorologicoScreen(
                     Text("¿Estás seguro de que deseas eliminar este registro meteorológico?")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "Fecha: ${datoActual.fecha_lectura}",
+                        "Fecha: ${dato.fecha_lectura}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        "Pluviómetro: ${datoActual.pluviometro_registro}",
+                        "Pluviómetro: ${dato.pluviometro_registro}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -478,7 +413,22 @@ fun DetallesDatoMeteorologicoScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        onEliminar()
+                        scope.launch {
+                            datoMeteorologicoViewModel.eliminarDato(
+                                dato.id,
+                                onSuccess = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("✅ Dato eliminado")
+                                        onNavigateBack()
+                                    }
+                                },
+                                onError = { error ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("❌ Error: $error")
+                                    }
+                                }
+                            )
+                        }
                         showDeleteDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(

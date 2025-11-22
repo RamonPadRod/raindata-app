@@ -5,95 +5,41 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import hn.unah.raindata.data.database.entities.DatoMeteorologico
 import hn.unah.raindata.viewmodel.DatoMeteorologicoViewModel
-import hn.unah.raindata.viewmodel.PluviometroViewModel
-import hn.unah.raindata.viewmodel.VoluntarioViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditarDatoMeteorologicoScreen(
     datoId: String,
-    datoMeteorologicoViewModel: DatoMeteorologicoViewModel = viewModel(),
-    voluntarioViewModel: VoluntarioViewModel = viewModel(),
-    pluviometroViewModel: PluviometroViewModel = viewModel(),
+    datoMeteorologicoViewModel: DatoMeteorologicoViewModel,
     onDatoActualizado: () -> Unit = {},
     onNavigateBack: () -> Unit = {}
 ) {
-    val datoOriginal by datoMeteorologicoViewModel.obtenerDatoPorId(datoId).observeAsState()
-    val todosLosVoluntarios by voluntarioViewModel.todosLosVoluntarios.observeAsState(emptyList())
-    val todosLosPluviometros by pluviometroViewModel.todosLosPluviometros.observeAsState(emptyList())
-
-    if (datoOriginal == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    val dato = datoOriginal!!
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Filtrar solo voluntarios con tipo_usuario = "Voluntario"
-    val voluntariosElegibles = remember(todosLosVoluntarios) {
-        todosLosVoluntarios.filter {
-            it.tipo_usuario?.equals("Voluntario", ignoreCase = true) == true
-        }
-    }
+    val dato by datoMeteorologicoViewModel.datoMeteorologico.collectAsState()
+    val isLoading by datoMeteorologicoViewModel.isLoading.collectAsState()
 
-    // Estados del formulario (pre-cargados con datos existentes)
-    var voluntarioSeleccionado by remember {
-        mutableStateOf(voluntariosElegibles.find { it.id == dato.voluntario_id })
-    }
-    var expandedVoluntario by remember { mutableStateOf(false) }
+    var fechaLectura by remember { mutableStateOf("") }
+    var horaLectura by remember { mutableStateOf("") }
+    var precipitacion by remember { mutableStateOf("") }
+    var temperaturaMaxima by remember { mutableStateOf("") }
+    var temperaturaMinima by remember { mutableStateOf("") }
+    var condicionesSeleccionadas by remember { mutableStateOf(setOf<String>()) }
+    var observaciones by remember { mutableStateOf("") }
 
-    var pluviometroSeleccionado by remember {
-        mutableStateOf(todosLosPluviometros.find { it.id == dato.pluviometro_id })
-    }
-    var expandedPluviometro by remember { mutableStateOf(false) }
-
-    // Fecha y hora de lectura (editable)
-    var fechaLectura by remember { mutableStateOf(dato.fecha_lectura) }
-    var horaLectura by remember { mutableStateOf(dato.hora_lectura) }
-
-    // Fecha y hora de registro (NO EDITABLE - mantener originales)
-    val fechaRegistro = dato.fecha_registro
-    val horaRegistro = dato.hora_registro
-
-    var precipitacion by remember { mutableStateOf(dato.precipitacion.toString()) }
-    var temperaturaMaxima by remember {
-        mutableStateOf(dato.temperatura_maxima?.toString() ?: "")
-    }
-    var temperaturaMinima by remember {
-        mutableStateOf(dato.temperatura_minima?.toString() ?: "")
-    }
-
-    // Condiciones del día
-    var condicionesSeleccionadas by remember {
-        mutableStateOf(
-            dato.condiciones_dia.split("|").filter { it.isNotBlank() }.toSet()
-        )
-    }
-
-    var observaciones by remember { mutableStateOf(dato.observaciones ?: "") }
-
-    // Estados de error
-    var errorVoluntario by remember { mutableStateOf<String?>(null) }
-    var errorPluviometro by remember { mutableStateOf<String?>(null) }
     var errorFechaLectura by remember { mutableStateOf<String?>(null) }
     var errorHoraLectura by remember { mutableStateOf<String?>(null) }
     var errorPrecipitacion by remember { mutableStateOf<String?>(null) }
@@ -103,7 +49,6 @@ fun EditarDatoMeteorologicoScreen(
     var errorCondiciones by remember { mutableStateOf<String?>(null) }
     var errorObservaciones by remember { mutableStateOf<String?>(null) }
 
-    // Lista de condiciones del día
     val condicionesDia = listOf(
         "Día despejado",
         "Día parcialmente nublado",
@@ -120,24 +65,20 @@ fun EditarDatoMeteorologicoScreen(
         "Sensación de frío más de lo normal"
     )
 
-    // Filtrar pluviómetros por voluntario seleccionado
-    val pluviometrosFiltrados = remember(voluntarioSeleccionado, todosLosPluviometros) {
-        voluntarioSeleccionado?.let { voluntario ->
-            todosLosPluviometros.filter { it.responsable_id == voluntario.id }
-        } ?: emptyList()
+    LaunchedEffect(datoId) {
+        datoMeteorologicoViewModel.cargarDatoPorId(datoId)
     }
 
-    // VALIDACIONES EN TIEMPO REAL
-    LaunchedEffect(voluntarioSeleccionado) {
-        errorVoluntario = if (voluntarioSeleccionado == null) {
-            "Debe seleccionar un voluntario"
-        } else null
-    }
-
-    LaunchedEffect(pluviometroSeleccionado) {
-        errorPluviometro = if (pluviometroSeleccionado == null) {
-            "Debe seleccionar un pluviómetro"
-        } else null
+    LaunchedEffect(dato) {
+        dato?.let {
+            fechaLectura = it.fecha_lectura
+            horaLectura = it.hora_lectura
+            precipitacion = it.precipitacion.toString()
+            temperaturaMaxima = it.temperatura_maxima?.toString() ?: ""
+            temperaturaMinima = it.temperatura_minima?.toString() ?: ""
+            condicionesSeleccionadas = it.condiciones_dia.split("|").filter { cond -> cond.isNotBlank() }.toSet()
+            observaciones = it.observaciones ?: ""
+        }
     }
 
     LaunchedEffect(fechaLectura) {
@@ -175,10 +116,7 @@ fun EditarDatoMeteorologicoScreen(
         errorObservaciones = datoMeteorologicoViewModel.validarObservaciones(observaciones)
     }
 
-    // Verificar si hay errores
-    val hayErrores = errorVoluntario != null ||
-            errorPluviometro != null ||
-            errorFechaLectura != null ||
+    val hayErrores = errorFechaLectura != null ||
             errorHoraLectura != null ||
             errorPrecipitacion != null ||
             errorTempMax != null ||
@@ -187,10 +125,22 @@ fun EditarDatoMeteorologicoScreen(
             errorCondiciones != null ||
             errorObservaciones != null
 
+    if (isLoading || dato == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val datoActual = dato!!
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Editar Registro Meteorológico") },
+                title = { Text("Editar Dato Meteorológico") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -199,16 +149,20 @@ fun EditarDatoMeteorologicoScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(paddingValues)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // ID del registro (NO EDITABLE)
+            Text(
+                text = "Editar Dato Meteorológico",
+                style = MaterialTheme.typography.headlineMedium
+            )
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -217,146 +171,29 @@ fun EditarDatoMeteorologicoScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "ID del Registro",
-                        style = MaterialTheme.typography.labelMedium,
+                        text = "Información del Registro",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Pluviómetro: ${datoActual.pluviometro_registro}",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Text(
-                        text = dato.id,
-                        style = MaterialTheme.typography.bodyLarge,
+                        text = "Voluntario: ${datoActual.voluntario_nombre}",
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Text(
-                        text = "Este ID no se puede modificar",
+                        text = "Fecha de registro: ${datoActual.fecha_registro} ${datoActual.hora_registro}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }
 
-            // Sección: Identificación
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Identificación",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    // Selector de voluntario
-                    ExposedDropdownMenuBox(
-                        expanded = expandedVoluntario,
-                        onExpandedChange = { expandedVoluntario = it }
-                    ) {
-                        OutlinedTextField(
-                            value = voluntarioSeleccionado?.nombre ?: "",
-                            onValueChange = { },
-                            readOnly = true,
-                            label = { Text("Voluntario *") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVoluntario) },
-                            isError = errorVoluntario != null,
-                            supportingText = {
-                                if (errorVoluntario != null) {
-                                    Text(
-                                        text = errorVoluntario!!,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            },
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expandedVoluntario,
-                            onDismissRequest = { expandedVoluntario = false }
-                        ) {
-                            voluntariosElegibles.forEach { voluntario ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(voluntario.nombre)
-                                            Text(
-                                                "${voluntario.municipio}, ${voluntario.departamento}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        voluntarioSeleccionado = voluntario
-                                        pluviometroSeleccionado = null
-                                        expandedVoluntario = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // Selector de pluviómetro
-                    ExposedDropdownMenuBox(
-                        expanded = expandedPluviometro,
-                        onExpandedChange = {
-                            if (voluntarioSeleccionado != null) {
-                                expandedPluviometro = it
-                            }
-                        }
-                    ) {
-                        OutlinedTextField(
-                            value = pluviometroSeleccionado?.let { "${it.numero_registro} - ${it.municipio}" } ?: "",
-                            onValueChange = { },
-                            readOnly = true,
-                            label = { Text("Pluviómetro *") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedPluviometro) },
-                            enabled = voluntarioSeleccionado != null,
-                            isError = errorPluviometro != null,
-                            supportingText = {
-                                when {
-                                    errorPluviometro != null -> Text(
-                                        text = errorPluviometro!!,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                    voluntarioSeleccionado == null -> Text("Primero seleccione un voluntario")
-                                    pluviometrosFiltrados.isEmpty() -> Text(
-                                        "No hay pluviómetros para este voluntario",
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            },
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expandedPluviometro,
-                            onDismissRequest = { expandedPluviometro = false }
-                        ) {
-                            pluviometrosFiltrados.forEach { pluviometro ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Column {
-                                            Text(pluviometro.numero_registro)
-                                            Text(
-                                                "${pluviometro.municipio}, ${pluviometro.departamento}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        pluviometroSeleccionado = pluviometro
-                                        expandedPluviometro = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Sección: Fecha y Hora de LECTURA (Editable)
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -369,7 +206,7 @@ fun EditarDatoMeteorologicoScreen(
                     )
 
                     Text(
-                        text = "Momento cuando se realizó la lectura del pluviómetro",
+                        text = "Editable: ±7 días desde la fecha original",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -414,57 +251,6 @@ fun EditarDatoMeteorologicoScreen(
                 }
             }
 
-            // Sección: Fecha y Hora de REGISTRO (No Editable)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = "Fecha y Hora de Registro Original",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-
-                    Text(
-                        text = "No se puede modificar",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Fecha:",
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                            Text(
-                                text = fechaRegistro,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Hora:",
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                            Text(
-                                text = horaRegistro,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Sección: Datos Meteorológicos
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -554,7 +340,6 @@ fun EditarDatoMeteorologicoScreen(
                 }
             }
 
-            // Sección: Condiciones del Día (Checklist)
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -566,7 +351,7 @@ fun EditarDatoMeteorologicoScreen(
                     )
 
                     Text(
-                        text = "Seleccione hasta 3 condiciones que mejor describan el día",
+                        text = "Seleccione hasta 3 condiciones",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (errorCondiciones != null)
                             MaterialTheme.colorScheme.error
@@ -582,7 +367,6 @@ fun EditarDatoMeteorologicoScreen(
                         )
                     }
 
-                    // Mostrar condiciones seleccionadas
                     if (condicionesSeleccionadas.isNotEmpty()) {
                         Card(
                             colors = CardDefaults.cardColors(
@@ -604,7 +388,6 @@ fun EditarDatoMeteorologicoScreen(
                         }
                     }
 
-                    // Lista de checkboxes
                     condicionesDia.forEach { condicion ->
                         Row(
                             modifier = Modifier
@@ -635,7 +418,6 @@ fun EditarDatoMeteorologicoScreen(
                 }
             }
 
-            // Sección: Observaciones
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -678,7 +460,6 @@ fun EditarDatoMeteorologicoScreen(
                 }
             }
 
-            // Botones
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -690,14 +471,9 @@ fun EditarDatoMeteorologicoScreen(
                             val tempMaxDouble = temperaturaMaxima.toDoubleOrNull()
                             val tempMinDouble = temperaturaMinima.toDoubleOrNull()
 
-                            val datoActualizado = dato.copy(
-                                voluntario_id = voluntarioSeleccionado!!.id,
-                                voluntario_nombre = voluntarioSeleccionado!!.nombre,
-                                pluviometro_id = pluviometroSeleccionado!!.id,
-                                pluviometro_registro = pluviometroSeleccionado!!.numero_registro,
+                            val datoActualizado = datoActual.copy(
                                 fecha_lectura = fechaLectura,
                                 hora_lectura = horaLectura,
-                                // Mantener fecha y hora de registro originales
                                 precipitacion = precipitacionDouble,
                                 temperatura_maxima = tempMaxDouble,
                                 temperatura_minima = tempMinDouble,
@@ -705,15 +481,33 @@ fun EditarDatoMeteorologicoScreen(
                                 observaciones = observaciones.ifBlank { null }
                             )
 
-                            datoMeteorologicoViewModel.actualizarDato(datoActualizado)
-                            snackbarHostState.showSnackbar("✅ Dato meteorológico actualizado exitosamente")
-                            onDatoActualizado()
+                            datoMeteorologicoViewModel.actualizarDato(
+                                datoActualizado,
+                                onSuccess = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("✅ Dato actualizado")
+                                        onDatoActualizado()
+                                    }
+                                },
+                                onError = { error ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("❌ Error: $error")
+                                    }
+                                }
+                            )
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = !hayErrores
+                    enabled = !hayErrores && !isLoading
                 ) {
-                    Text("Guardar Cambios")
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Guardar Cambios")
+                    }
                 }
 
                 OutlinedButton(
@@ -724,7 +518,6 @@ fun EditarDatoMeteorologicoScreen(
                 }
             }
 
-            // Resumen de errores
             if (hayErrores) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -740,8 +533,6 @@ fun EditarDatoMeteorologicoScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         listOfNotNull(
-                            errorVoluntario,
-                            errorPluviometro,
                             errorFechaLectura,
                             errorHoraLectura,
                             errorPrecipitacion,

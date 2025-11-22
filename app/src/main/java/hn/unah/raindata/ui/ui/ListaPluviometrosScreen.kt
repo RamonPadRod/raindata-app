@@ -9,41 +9,53 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import hn.unah.raindata.data.database.entities.Pluviometro
 import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.viewmodel.PluviometroViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListaPluviometrosScreen(
-    viewModel: PluviometroViewModel = viewModel(),
+    viewModel: PluviometroViewModel,
     onAgregarPluviometro: () -> Unit = {},
     onVerDetalles: (Pluviometro) -> Unit = {},
     onEditarPluviometro: (Pluviometro) -> Unit = {}
 ) {
-    val todosLosPluviometros by viewModel.todosLosPluviometros.observeAsState(emptyList())
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // ✅ OBTENER DATOS CON FILTRO POR ROL
+    val todosLosPluviometros by viewModel.pluviometros.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
     var showNoPermissionDialog by remember { mutableStateOf(false) }
     var noPermissionMessage by remember { mutableStateOf("") }
 
-    // ✅ ESTADO DE BÚSQUEDA
+    // Estado de búsqueda
     var textoBusqueda by remember { mutableStateOf("") }
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    // ✅ FILTRAR PLUVIÓMETROS EN TIEMPO REAL
+    LaunchedEffect(Unit) {
+        if (UserSession.shouldFilterPluviometrosByUser()) {
+            val uid = UserSession.getCurrentUserUid()
+            uid?.let { viewModel.obtenerPluviometrosPorResponsable(it) }
+        } else {
+            viewModel.cargarPluviometros()
+        }
+    }
+    // Filtrar pluviómetros en tiempo real
     val pluviometrosFiltrados = remember(todosLosPluviometros, textoBusqueda) {
         if (textoBusqueda.isBlank()) {
             todosLosPluviometros
         } else {
             val busqueda = textoBusqueda.trim().lowercase()
             todosLosPluviometros.filter { pluviometro ->
-                // Buscar en: código, responsable, departamento, municipio, aldea
                 pluviometro.numero_registro.lowercase().contains(busqueda) ||
                         pluviometro.responsable_nombre.lowercase().contains(busqueda) ||
                         pluviometro.departamento.lowercase().contains(busqueda) ||
@@ -63,7 +75,8 @@ fun ListaPluviometrosScreen(
                     Icon(Icons.Default.Add, contentDescription = "Agregar Pluviómetro")
                 }
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -83,12 +96,17 @@ fun ListaPluviometrosScreen(
                         Icon(
                             Icons.Default.LocationOn,
                             contentDescription = null,
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Pluviómetros Registrados",
+                                text = if (UserSession.shouldFilterPluviometrosByUser()) {
+                                    "Mis Pluviómetros"
+                                } else {
+                                    "Pluviómetros Registrados"
+                                },
                                 style = MaterialTheme.typography.headlineSmall
                             )
                             Text(
@@ -103,33 +121,36 @@ fun ListaPluviometrosScreen(
                         }
 
                         // Badge de permisos
-                        if (!UserSession.canCreatePluviometros()) {
-                            Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                )
-                            ) {
-                                Text(
-                                    text = "Solo lectura",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                            }
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = when {
+                                    UserSession.isAdmin() -> MaterialTheme.colorScheme.primaryContainer
+                                    UserSession.isVoluntario() -> MaterialTheme.colorScheme.secondaryContainer
+                                    else -> MaterialTheme.colorScheme.tertiaryContainer
+                                }
+                            )
+                        ) {
+                            Text(
+                                text = when {
+                                    UserSession.isAdmin() -> "Admin"
+                                    UserSession.isVoluntario() -> "Voluntario"
+                                    else -> "Solo lectura"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // ✅ CAMPO DE BÚSQUEDA EN TIEMPO REAL
+                    // Campo de búsqueda
                     OutlinedTextField(
                         value = textoBusqueda,
-                        onValueChange = {
-                            textoBusqueda = it
-                        },
+                        onValueChange = { textoBusqueda = it },
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = {
-                            Text("Buscar por código, responsable, departamento, municipio o aldea...")
+                            Text("Buscar por código, responsable, departamento...")
                         },
                         leadingIcon = {
                             Icon(
@@ -143,7 +164,7 @@ fun ListaPluviometrosScreen(
                                 IconButton(
                                     onClick = {
                                         textoBusqueda = ""
-                                        keyboardController?.hide() // ✅ Cerrar teclado al limpiar
+                                        keyboardController?.hide()
                                     }
                                 ) {
                                     Icon(
@@ -159,12 +180,8 @@ fun ListaPluviometrosScreen(
                         ),
                         keyboardActions = KeyboardActions(
                             onSearch = {
-                                keyboardController?.hide() // ✅ Cerrar teclado al presionar Search
+                                keyboardController?.hide()
                             }
-                        ),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline
                         )
                     )
 
@@ -191,113 +208,144 @@ fun ListaPluviometrosScreen(
                 }
             }
 
-            // Lista de pluviómetros
-            if (todosLosPluviometros.isEmpty()) {
-                // No hay pluviómetros en total
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        Icons.Default.LocationOn,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No hay pluviómetros registrados",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (UserSession.canCreatePluviometros()) {
+            // Contenido
+            when {
+                isLoading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                todosLosPluviometros.isEmpty() -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Presiona el botón + para agregar el primer pluviómetro",
+                            text = if (UserSession.shouldFilterPluviometrosByUser()) {
+                                "No tienes pluviómetros asignados"
+                            } else {
+                                "No hay pluviómetros registrados"
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (UserSession.canCreatePluviometros()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Presiona el botón + para agregar el primer pluviómetro",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                pluviometrosFiltrados.isEmpty() -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Default.SearchOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No se encontraron resultados",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Intenta con otra búsqueda",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
-                }
-            } else if (pluviometrosFiltrados.isEmpty()) {
-                // Hay pluviómetros pero ninguno coincide con la búsqueda
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        Icons.Default.SearchOff,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No se encontraron resultados",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Intenta con otra búsqueda",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = {
-                            textoBusqueda = ""
-                            keyboardController?.hide()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                textoBusqueda = ""
+                                keyboardController?.hide()
+                            }
+                        ) {
+                            Icon(Icons.Default.Clear, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Limpiar búsqueda")
                         }
-                    ) {
-                        Icon(Icons.Default.Clear, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Limpiar búsqueda")
                     }
                 }
-            } else {
-                // Mostrar resultados
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(
-                        items = pluviometrosFiltrados,
-                        key = { it.id }
-                    ) { pluviometro ->
-                        PluviometroCard(
-                            pluviometro = pluviometro,
-                            textoBusqueda = textoBusqueda,
-                            onVerDetalles = {
-                                keyboardController?.hide() // ✅ Cerrar teclado al ver detalles
-                                onVerDetalles(pluviometro)
-                            },
-                            onEdit = {
-                                keyboardController?.hide() // ✅ Cerrar teclado al editar
-                                if (UserSession.canEditPluviometros()) {
-                                    onEditarPluviometro(pluviometro)
-                                } else {
-                                    noPermissionMessage = "No tienes permisos para editar pluviómetros. Solo los Administradores y Voluntarios pueden realizar esta acción."
-                                    showNoPermissionDialog = true
-                                }
-                            },
-                            onDelete = {
-                                keyboardController?.hide() // ✅ Cerrar teclado al eliminar
-                                if (UserSession.canDeletePluviometros()) {
-                                    viewModel.eliminarPluviometro(pluviometro.id)
-                                } else {
-                                    noPermissionMessage = "No tienes permisos para eliminar pluviómetros. Solo los Administradores pueden realizar esta acción."
-                                    showNoPermissionDialog = true
-                                }
-                            },
-                            canEdit = UserSession.canEditPluviometros(),
-                            canDelete = UserSession.canDeletePluviometros()
-                        )
+
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(
+                            items = pluviometrosFiltrados,
+                            key = { it.id }
+                        ) { pluviometro ->
+                            PluviometroCard(
+                                pluviometro = pluviometro,
+                                textoBusqueda = textoBusqueda,
+                                onVerDetalles = {
+                                    keyboardController?.hide()
+                                    onVerDetalles(pluviometro)
+                                },
+                                onEdit = {
+                                    keyboardController?.hide()
+                                    if (UserSession.canEditPluviometros()) {
+                                        onEditarPluviometro(pluviometro)
+                                    } else {
+                                        noPermissionMessage = "No tienes permisos para editar pluviómetros."
+                                        showNoPermissionDialog = true
+                                    }
+                                },
+                                onDelete = {
+                                    keyboardController?.hide()
+                                    if (UserSession.canDeletePluviometros()) {
+                                        scope.launch {
+                                            viewModel.eliminarPluviometro(
+                                                pluviometro.id,
+                                                onSuccess = {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("✅ Pluviómetro eliminado")
+                                                    }
+                                                },
+                                                onError = { error ->
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar("❌ Error: $error")
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    } else {
+                                        noPermissionMessage = "No tienes permisos para eliminar pluviómetros."
+                                        showNoPermissionDialog = true
+                                    }
+                                },
+                                canEdit = UserSession.canEditPluviometros(),
+                                canDelete = UserSession.canDeletePluviometros()
+                            )
+                        }
                     }
                 }
             }
@@ -308,7 +356,7 @@ fun ListaPluviometrosScreen(
     if (showNoPermissionDialog) {
         AlertDialog(
             onDismissRequest = { showNoPermissionDialog = false },
-            icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+            icon = { Icon(Icons.Default.Lock, contentDescription = null) },
             title = { Text("Permiso Denegado") },
             text = { Text(noPermissionMessage) },
             confirmButton = {
@@ -320,7 +368,6 @@ fun ListaPluviometrosScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PluviometroCard(
     pluviometro: Pluviometro,
@@ -360,7 +407,6 @@ fun PluviometroCard(
                             style = MaterialTheme.typography.titleMedium
                         )
 
-                        // ✅ Indicador de coincidencia en código
                         if (textoBusqueda.isNotEmpty() &&
                             pluviometro.numero_registro.lowercase().contains(textoBusqueda.lowercase())) {
                             Spacer(modifier = Modifier.width(8.dp))
@@ -382,7 +428,6 @@ fun PluviometroCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        // ✅ Indicador de coincidencia en ubicación
                         if (textoBusqueda.isNotEmpty() && (
                                     pluviometro.departamento.lowercase().contains(textoBusqueda.lowercase()) ||
                                             pluviometro.municipio.lowercase().contains(textoBusqueda.lowercase()))) {
@@ -403,7 +448,6 @@ fun PluviometroCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        // ✅ Indicador de coincidencia en aldea
                         if (textoBusqueda.isNotEmpty() &&
                             pluviometro.aldea.lowercase().contains(textoBusqueda.lowercase())) {
                             Spacer(modifier = Modifier.width(4.dp))
@@ -442,7 +486,6 @@ fun PluviometroCard(
                             color = MaterialTheme.colorScheme.secondary
                         )
 
-                        // ✅ Indicador de coincidencia en responsable
                         if (textoBusqueda.isNotEmpty() &&
                             pluviometro.responsable_nombre.lowercase().contains(textoBusqueda.lowercase())) {
                             Spacer(modifier = Modifier.width(4.dp))

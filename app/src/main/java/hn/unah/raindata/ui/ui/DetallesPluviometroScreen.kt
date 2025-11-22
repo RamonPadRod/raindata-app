@@ -16,6 +16,8 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 import hn.unah.raindata.data.database.entities.Pluviometro
 import hn.unah.raindata.data.session.UserSession
+import hn.unah.raindata.viewmodel.PluviometroViewModel
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -23,10 +25,12 @@ import java.util.*
 @Composable
 fun DetallesPluviometroScreen(
     pluviometro: Pluviometro,
+    pluviometroViewModel: PluviometroViewModel,
     onNavigateBack: () -> Unit = {},
-    onEditar: () -> Unit = {},
-    onEliminar: () -> Unit = {}
+    onEditar: () -> Unit = {}
 ) {
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     val ubicacion = LatLng(pluviometro.latitud, pluviometro.longitud)
@@ -44,13 +48,11 @@ fun DetallesPluviometroScreen(
                     }
                 },
                 actions = {
-                    // Botón de editar
                     if (UserSession.canEditPluviometros()) {
                         IconButton(onClick = onEditar) {
                             Icon(Icons.Default.Edit, contentDescription = "Editar")
                         }
                     }
-                    // Botón de eliminar
                     if (UserSession.canDeletePluviometros()) {
                         IconButton(onClick = { showDeleteDialog = true }) {
                             Icon(
@@ -62,7 +64,8 @@ fun DetallesPluviometroScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -72,7 +75,6 @@ fun DetallesPluviometroScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header con código
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -104,21 +106,20 @@ fun DetallesPluviometroScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Badge de estado
                     Card(
                         colors = CardDefaults.cardColors(
                             containerColor = if (pluviometro.activo)
-                                MaterialTheme.colorScheme.primaryContainer
+                                MaterialTheme.colorScheme.primary
                             else
                                 MaterialTheme.colorScheme.errorContainer
                         )
                     ) {
                         Text(
-                            text = if (pluviometro.activo) "Activo" else "Inactivo",
+                            text = if (pluviometro.activo) "✓ Activo" else "✗ Inactivo",
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             color = if (pluviometro.activo)
-                                MaterialTheme.colorScheme.onPrimaryContainer
+                                MaterialTheme.colorScheme.onPrimary
                             else
                                 MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -126,7 +127,6 @@ fun DetallesPluviometroScreen(
                 }
             }
 
-            // Ubicación Geográfica
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -145,7 +145,6 @@ fun DetallesPluviometroScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Departamento y Municipio
                     DetailRow(
                         label = "Departamento",
                         value = pluviometro.departamento,
@@ -180,7 +179,6 @@ fun DetallesPluviometroScreen(
                 }
             }
 
-            // Coordenadas y Mapa
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -213,7 +211,6 @@ fun DetallesPluviometroScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Mapa
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -241,7 +238,6 @@ fun DetallesPluviometroScreen(
                 }
             }
 
-            // Responsable
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -268,13 +264,12 @@ fun DetallesPluviometroScreen(
 
                     DetailRow(
                         label = "ID Responsable",
-                        value = pluviometro.responsable_id.toString(),
+                        value = pluviometro.responsable_uid,
                         icon = Icons.Default.Numbers
                     )
                 }
             }
 
-            // Observaciones
             if (!pluviometro.observaciones.isNullOrBlank()) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -302,7 +297,6 @@ fun DetallesPluviometroScreen(
                 }
             }
 
-            // Información de registro
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -323,21 +317,24 @@ fun DetallesPluviometroScreen(
 
                     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
-                    DetailRow(
-                        label = "Fecha de Creación",
-                        value = dateFormat.format(Date(pluviometro.fecha_creacion)),
-                        icon = Icons.Default.CalendarToday
-                    )
+                    pluviometro.fecha_creacion?.let { timestamp ->
+                        DetailRow(
+                            label = "Fecha de Creación",
+                            value = dateFormat.format(timestamp.toDate()),
+                            icon = Icons.Default.CalendarToday
+                        )
+                    }
 
-                    DetailRow(
-                        label = "Última Modificación",
-                        value = dateFormat.format(Date(pluviometro.fecha_modificacion)),
-                        icon = Icons.Default.Update
-                    )
+                    pluviometro.fecha_modificacion?.let { timestamp ->
+                        DetailRow(
+                            label = "Última Modificación",
+                            value = dateFormat.format(timestamp.toDate()),
+                            icon = Icons.Default.Update
+                        )
+                    }
                 }
             }
 
-            // Botones de acción
             if (UserSession.canEditPluviometros() || UserSession.canDeletePluviometros()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -372,7 +369,6 @@ fun DetallesPluviometroScreen(
         }
     }
 
-    // Diálogo de confirmación de eliminación
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -392,7 +388,22 @@ fun DetallesPluviometroScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        onEliminar()
+                        scope.launch {
+                            pluviometroViewModel.eliminarPluviometro(
+                                pluviometro.id,
+                                onSuccess = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("✅ Pluviómetro eliminado")
+                                        onNavigateBack()
+                                    }
+                                },
+                                onError = { error ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("❌ Error: $error")
+                                    }
+                                }
+                            )
+                        }
                         showDeleteDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -419,7 +430,7 @@ private fun DetailRow(
 ) {
     Row(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxSize()
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

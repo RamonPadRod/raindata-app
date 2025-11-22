@@ -12,12 +12,10 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -25,27 +23,67 @@ import com.google.maps.android.compose.*
 import hn.unah.raindata.data.database.entities.Pluviometro
 import hn.unah.raindata.data.database.entities.Voluntario
 import hn.unah.raindata.data.utils.DepartamentosHonduras
+import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.viewmodel.PluviometroViewModel
 import hn.unah.raindata.viewmodel.VoluntarioViewModel
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditarPluviometroScreen(
     pluviometro: Pluviometro,
-    pluviometroViewModel: PluviometroViewModel = viewModel(),
-    voluntarioViewModel: VoluntarioViewModel = viewModel(),
+    pluviometroViewModel: PluviometroViewModel,
+    voluntarioViewModel: VoluntarioViewModel,
     onPluviometroActualizado: () -> Unit = {},
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    onAccesoDenegado: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val todosLosVoluntarios by voluntarioViewModel.todosLosVoluntarios.observeAsState(emptyList())
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    // Filtrar solo voluntarios con tipo_usuario = "Voluntario"
-    val voluntariosElegibles = todosLosVoluntarios.filter {
-        it.tipo_usuario?.equals("Voluntario", ignoreCase = true) == true
+    val puedeEditar = UserSession.canEditPluviometros()
+
+    if (!puedeEditar) {
+        LaunchedEffect(Unit) {
+            snackbarHostState.showSnackbar("❌ Solo los administradores pueden editar pluviómetros")
+            onAccesoDenegado()
+        }
+
+        Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "⚠️ Acceso Denegado",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Solo los administradores pueden editar pluviómetros")
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = onAccesoDenegado) {
+                        Text("Volver")
+                    }
+                }
+            }
+        }
+        return
     }
 
-    // Estados del formulario (precargados con los datos del pluviómetro)
+    val todosLosVoluntarios by voluntarioViewModel.voluntarios.collectAsState()
+    val isLoading by pluviometroViewModel.isLoading.collectAsState()
+
+    val voluntariosElegibles = todosLosVoluntarios.filter {
+        it.tipo_usuario == "Voluntario" && it.estado_aprobacion == "Aprobado"
+    }
+
     var direccion by remember { mutableStateOf(pluviometro.direccion) }
     var departamento by remember { mutableStateOf(pluviometro.departamento) }
     var municipio by remember { mutableStateOf(pluviometro.municipio) }
@@ -57,7 +95,6 @@ fun EditarPluviometroScreen(
     var expandedMunicipio by remember { mutableStateOf(false) }
     var observaciones by remember { mutableStateOf(pluviometro.observaciones ?: "") }
 
-    // Estados de error
     var errorDireccion by remember { mutableStateOf<String?>(null) }
     var errorCoordenadas by remember { mutableStateOf<String?>(null) }
     var errorAldea by remember { mutableStateOf<String?>(null) }
@@ -66,14 +103,12 @@ fun EditarPluviometroScreen(
     var errorDepartamento by remember { mutableStateOf<String?>(null) }
     var errorMunicipio by remember { mutableStateOf<String?>(null) }
 
-    // Estados del mapa (precargado con ubicación actual)
     var ubicacionSeleccionada by remember {
         mutableStateOf(LatLng(pluviometro.latitud, pluviometro.longitud))
     }
     var mostrarMapa by remember { mutableStateOf(false) }
     var permisoUbicacionConcedido by remember { mutableStateOf(false) }
 
-    // Lista de municipios según departamento seleccionado
     val municipiosDisponibles = remember(departamento) {
         DepartamentosHonduras.obtenerMunicipios(departamento)
     }
@@ -82,19 +117,16 @@ fun EditarPluviometroScreen(
         position = CameraPosition.fromLatLngZoom(ubicacionSeleccionada, 15f)
     }
 
-    // Cargar el voluntario actual
     LaunchedEffect(Unit) {
         permisoUbicacionConcedido = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
-        // Buscar y asignar el voluntario responsable actual
-        val responsable = voluntariosElegibles.find { it.id == pluviometro.responsable_id }
+        val responsable = voluntariosElegibles.find { it.firebase_uid == pluviometro.responsable_uid }
         voluntarioSeleccionado = responsable
     }
 
-    // Launcher para solicitar permisos
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -116,7 +148,6 @@ fun EditarPluviometroScreen(
         }
     }
 
-    // FUNCIONES DE VALIDACIÓN
     fun validarDireccion(valor: String): String? {
         if (valor.isBlank()) return "La dirección es obligatoria"
         val regex = Regex("^[a-zA-Z0-9\\s.,#/-]+$")
@@ -138,7 +169,6 @@ fun EditarPluviometroScreen(
         return null
     }
 
-    // Validar en tiempo real
     LaunchedEffect(direccion) { errorDireccion = validarDireccion(direccion) }
     LaunchedEffect(ubicacionSeleccionada) {
         errorCoordenadas = validarCoordenadas(ubicacionSeleccionada.latitude, ubicacionSeleccionada.longitude)
@@ -168,7 +198,6 @@ fun EditarPluviometroScreen(
         errorMunicipio = if (municipio.isBlank()) "Debe seleccionar un municipio" else null
     }
 
-    // Verificar si hay errores
     val hayErrores = errorDireccion != null ||
             errorCoordenadas != null ||
             errorAldea != null ||
@@ -192,7 +221,8 @@ fun EditarPluviometroScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -202,7 +232,6 @@ fun EditarPluviometroScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Código del pluviómetro (NO EDITABLE)
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -228,7 +257,6 @@ fun EditarPluviometroScreen(
                 }
             }
 
-            // Información Básica
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -239,7 +267,6 @@ fun EditarPluviometroScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
 
-                    // Selector de voluntario responsable
                     ExposedDropdownMenuBox(
                         expanded = expandedVoluntario,
                         onExpandedChange = { expandedVoluntario = it }
@@ -292,7 +319,6 @@ fun EditarPluviometroScreen(
                 }
             }
 
-            // Ubicación
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -303,7 +329,6 @@ fun EditarPluviometroScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
 
-                    // Departamento
                     ExposedDropdownMenuBox(
                         expanded = expandedDepartamento,
                         onExpandedChange = { expandedDepartamento = it }
@@ -338,7 +363,6 @@ fun EditarPluviometroScreen(
                         }
                     }
 
-                    // Municipio
                     ExposedDropdownMenuBox(
                         expanded = expandedMunicipio,
                         onExpandedChange = { expandedMunicipio = it }
@@ -401,7 +425,7 @@ fun EditarPluviometroScreen(
                     OutlinedTextField(
                         value = caserioBarrioColonia,
                         onValueChange = { if (it.length <= 50) caserioBarrioColonia = it },
-                        label = { Text("Caserío/Barrio/Colonia (máx. 50 caracteres)") },
+                        label = { Text("Caserío/Barrio/Colonia (opcional)") },
                         isError = errorBarrio != null,
                         supportingText = {
                             Row(
@@ -435,7 +459,6 @@ fun EditarPluviometroScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Botón para mapa
                     Button(
                         onClick = {
                             if (!permisoUbicacionConcedido) {
@@ -447,10 +470,9 @@ fun EditarPluviometroScreen(
                     ) {
                         Icon(Icons.Default.MyLocation, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (mostrarMapa) "Ocultar Mapa" else "Modificar Ubicación en Mapa")
+                        Text(if (mostrarMapa) "Ocultar Mapa" else "Modificar Ubicación")
                     }
 
-                    // Mapa
                     if (mostrarMapa) {
                         Card(
                             modifier = Modifier
@@ -488,52 +510,61 @@ fun EditarPluviometroScreen(
                 }
             }
 
-            // Observaciones
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Observaciones",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = observaciones,
+                onValueChange = { observaciones = it },
+                label = { Text("Observaciones (opcional)") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3
+            )
 
-                    OutlinedTextField(
-                        value = observaciones,
-                        onValueChange = { observaciones = it },
-                        label = { Text("Observaciones adicionales") },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 3
-                    )
-                }
-            }
-
-            // Botones
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
                     onClick = {
-                        val pluviometroActualizado = pluviometro.copy(
-                            latitud = ubicacionSeleccionada.latitude,
-                            longitud = ubicacionSeleccionada.longitude,
-                            direccion = direccion,
-                            departamento = departamento,
-                            municipio = municipio,
-                            aldea = aldea,
-                            caserio_barrio_colonia = caserioBarrioColonia.ifBlank { null },
-                            responsable_id = voluntarioSeleccionado!!.id,
-                            responsable_nombre = voluntarioSeleccionado!!.nombre,
-                            observaciones = observaciones.ifBlank { null }
-                        )
+                        scope.launch {
+                            val pluviometroActualizado = pluviometro.copy(
+                                latitud = ubicacionSeleccionada.latitude,
+                                longitud = ubicacionSeleccionada.longitude,
+                                direccion = direccion,
+                                departamento = departamento,
+                                municipio = municipio,
+                                aldea = aldea,
+                                caserio_barrio_colonia = caserioBarrioColonia.ifBlank { null },
+                                responsable_uid = voluntarioSeleccionado!!.firebase_uid,
+                                responsable_nombre = voluntarioSeleccionado!!.nombre,
+                                observaciones = observaciones.ifBlank { null }
+                            )
 
-                        pluviometroViewModel.actualizarPluviometro(pluviometroActualizado)
-                        onPluviometroActualizado()
+                            pluviometroViewModel.actualizarPluviometro(
+                                pluviometroActualizado,
+                                onSuccess = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("✅ Pluviómetro actualizado")
+                                        onPluviometroActualizado()
+                                    }
+                                },
+                                onError = { error ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("❌ Error: $error")
+                                    }
+                                }
+                            )
+                        }
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = !hayErrores
+                    enabled = !hayErrores && !isLoading
                 ) {
-                    Text("Guardar Cambios")
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Guardar Cambios")
+                    }
                 }
 
                 OutlinedButton(
@@ -541,40 +572,6 @@ fun EditarPluviometroScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Cancelar")
-                }
-            }
-
-            // Resumen de errores
-            if (hayErrores) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "⚠️ Corrija los siguientes errores:",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        listOfNotNull(
-                            errorDireccion,
-                            errorCoordenadas,
-                            errorAldea,
-                            errorBarrio,
-                            errorVoluntario,
-                            errorDepartamento,
-                            errorMunicipio
-                        ).forEach { error ->
-                            Text(
-                                text = "• $error",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
                 }
             }
         }
