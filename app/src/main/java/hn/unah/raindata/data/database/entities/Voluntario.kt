@@ -40,12 +40,12 @@ data class Voluntario(
     val visto_por_admin: Boolean = false,
 
     // ===== APROBACIÓN =====
-    val fecha_aprobacion: Timestamp? = null,
+    val fecha_aprobacion: String? = null,        // ← Cambiar Timestamp por String
     val aprobado_por_uid: String? = null,
     val aprobado_por_nombre: String? = null,
 
-    // ===== RECHAZO =====
-    val fecha_rechazo: Timestamp? = null,
+// ===== RECHAZO =====
+    val fecha_rechazo: String? = null,           // ← Cambiar Timestamp por String
     val rechazado_por_uid: String? = null,
     val rechazado_por_nombre: String? = null,
 

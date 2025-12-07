@@ -1048,6 +1048,7 @@ fun RegistroVoluntarioScreen(
                                 fecha_nacimiento = fechaNacimiento,
                                 genero = genero,
                                 tipo_usuario = tipoUsuario,
+                                estado_aprobacion = if (tipoUsuario == "Administrador") "Pendiente" else "Aprobado",
                                 observaciones = observaciones.ifBlank { null }
                             )
 

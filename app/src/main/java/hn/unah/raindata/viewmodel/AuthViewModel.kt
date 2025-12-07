@@ -189,9 +189,31 @@ class AuthViewModel : ViewModel() {
     }
 
     // CERRAR SESIÓN
+    // CERRAR SESIÓN
     fun cerrarSesion() {
         auth.signOut()
         _authState.value = AuthState.Idle
+    }
+
+    // ✅ ELIMINAR CUENTA ACTUAL
+    fun eliminarCuentaActual(
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val user = auth.currentUser
+
+        if (user != null) {
+            user.delete()
+                .addOnSuccessListener {
+                    _authState.value = AuthState.Idle
+                    onSuccess()
+                }
+                .addOnFailureListener { exception ->
+                    onError(exception.message ?: "Error al eliminar cuenta")
+                }
+        } else {
+            onError("No hay usuario autenticado")
+        }
     }
 
     // VALIDACIÓN DE EMAIL

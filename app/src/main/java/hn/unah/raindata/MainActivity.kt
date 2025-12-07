@@ -24,6 +24,8 @@ enum class Pantalla {
     LOGIN,
     REGISTRO,
     RECUPERAR_PASSWORD,
+
+    SOLICITUD_PENDIENTE,
     HOME,
     LISTA_VOLUNTARIOS,
     REGISTRO_VOLUNTARIO,
@@ -88,6 +90,7 @@ class MainActivity : ComponentActivity() {
                         Pantalla.LOGIN -> manejarSalida()
                         Pantalla.REGISTRO -> pantallaActual = Pantalla.LOGIN
                         Pantalla.RECUPERAR_PASSWORD -> pantallaActual = Pantalla.LOGIN
+                        Pantalla.SOLICITUD_PENDIENTE -> manejarSalida()  // ← AGREGAR ESTA LÍNEA
                         Pantalla.HOME -> manejarSalida()
                         Pantalla.LISTA_VOLUNTARIOS,
                         Pantalla.LISTA_PLUVIOMETROS,
@@ -134,12 +137,9 @@ class MainActivity : ComponentActivity() {
                                                 pantallaActual = Pantalla.HOME
                                             }
                                             "Pendiente" -> {
-                                                authViewModel.cerrarSesion()
-                                                Toast.makeText(
-                                                    this@MainActivity,
-                                                    "Tu solicitud está pendiente de aprobación",
-                                                    Toast.LENGTH_LONG
-                                                ).show()
+                                                // ✅ IR A PANTALLA DE ESPERA (en lugar de cerrar sesión)
+                                                UserSession.login(voluntario)  // Cargar sesión temporalmente
+                                                pantallaActual = Pantalla.SOLICITUD_PENDIENTE
                                             }
                                             "Rechazado" -> {
                                                 authViewModel.cerrarSesion()
@@ -179,6 +179,63 @@ class MainActivity : ComponentActivity() {
                         RecuperarPasswordScreen(
                             authViewModel = authViewModel,
                             onNavigateBack = { pantallaActual = Pantalla.LOGIN }
+                        )
+                    }
+
+                    Pantalla.SOLICITUD_PENDIENTE -> {
+                        PantallaSolicitudPendiente(
+                            nombreUsuario = UserSession.getCurrentUserName(),
+                            emailUsuario = UserSession.getCurrentUser()?.email ?: "",
+                            onCerrarSesion = {
+                                authViewModel.cerrarSesion()
+                                UserSession.logout()
+                                pantallaActual = Pantalla.LOGIN
+                            },
+                            onCancelarSolicitud = {
+                                scope.launch {
+                                    val currentUser = UserSession.getCurrentUser()
+
+                                    if (currentUser != null) {
+                                        voluntarioViewModel.eliminarVoluntario(
+                                            firebaseUid = currentUser.firebase_uid,
+                                            onSuccess = {
+                                                authViewModel.eliminarCuentaActual(
+                                                    onSuccess = {
+                                                        UserSession.logout()
+
+                                                        Toast.makeText(
+                                                            this@MainActivity,
+                                                            "✅ Solicitud cancelada exitosamente",
+                                                            Toast.LENGTH_LONG
+                                                        ).show()
+
+                                                        pantallaActual = Pantalla.LOGIN
+                                                    },
+                                                    onError = { error ->
+                                                        authViewModel.cerrarSesion()
+                                                        UserSession.logout()
+
+                                                        Toast.makeText(
+                                                            this@MainActivity,
+                                                            "⚠️ Solicitud cancelada, pero hubo un problema. Por favor no vuelvas a usar este correo.",
+                                                            Toast.LENGTH_LONG
+                                                        ).show()
+
+                                                        pantallaActual = Pantalla.LOGIN
+                                                    }
+                                                )
+                                            },
+                                            onError = { error ->
+                                                Toast.makeText(
+                                                    this@MainActivity,
+                                                    "❌ No se pudo cancelar la solicitud. Por favor intenta de nuevo.",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         )
                     }
 
@@ -270,8 +327,34 @@ class MainActivity : ComponentActivity() {
                                                 val voluntario = voluntarioViewModel.buscarPorFirebaseUid(firebaseUidRegistrado)
 
                                                 if (voluntario != null) {
-                                                    UserSession.login(voluntario)
-                                                    pantallaActual = Pantalla.HOME
+                                                    when (voluntario.estado_aprobacion) {
+                                                        "Aprobado" -> {
+                                                            UserSession.login(voluntario)
+                                                            pantallaActual = Pantalla.HOME
+                                                        }
+                                                        "Pendiente" -> {
+                                                            UserSession.login(voluntario)
+                                                            pantallaActual = Pantalla.SOLICITUD_PENDIENTE
+                                                        }
+                                                        "Rechazado" -> {
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                "Tu solicitud fue rechazada. Contacta al administrador.",
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                            authViewModel.cerrarSesion()
+                                                            pantallaActual = Pantalla.LOGIN
+                                                        }
+                                                        else -> {
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                "Error en el estado de aprobación. Intenta nuevamente.",
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                            authViewModel.cerrarSesion()
+                                                            pantallaActual = Pantalla.LOGIN
+                                                        }
+                                                    }
                                                 } else {
                                                     Toast.makeText(
                                                         this@MainActivity,

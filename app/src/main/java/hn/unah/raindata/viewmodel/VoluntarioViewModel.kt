@@ -97,7 +97,7 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
                     firebase_uid = voluntario.firebase_uid.ifBlank { auth.currentUser?.uid ?: UUID.randomUUID().toString() },
                     tipo_usuario = tipoUsuario,
                     estado_aprobacion = estadoAprobacion,
-                    visto_por_admin = estadoAprobacion == "Aprobado" // Si es aprobado automáticamente, ya está visto
+                    visto_por_admin = estadoAprobacion == "Aprobado"
                 )
 
                 // Guardar en Firestore
@@ -105,6 +105,29 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
                     .document(voluntarioFinal.firebase_uid)
                     .set(voluntarioFinal)
                     .await()
+
+                // ✅ NUEVO: ENVIAR EMAIL SI ES VOLUNTARIO U OBSERVADOR APROBADO AUTOMÁTICAMENTE
+                if (estadoAprobacion == "Aprobado" && tipoUsuario != "Administrador") {
+                    // Enviar email de bienvenida en segundo plano
+                    launch {
+                        hn.unah.raindata.data.email.EmailService.enviarEmailConCallback(
+                            tipo = when (tipoUsuario) {
+                                "Voluntario" -> hn.unah.raindata.data.email.EmailService.TipoEmail.BIENVENIDA_VOLUNTARIO
+                                "Observador" -> hn.unah.raindata.data.email.EmailService.TipoEmail.BIENVENIDA_OBSERVADOR
+                                else -> hn.unah.raindata.data.email.EmailService.TipoEmail.BIENVENIDA_VOLUNTARIO
+                            },
+                            destinatario = voluntarioFinal.email,
+                            nombreUsuario = voluntarioFinal.nombre,
+                            onSuccess = {
+                                android.util.Log.d("VoluntarioViewModel", "✅ Email de bienvenida enviado a ${voluntarioFinal.email}")
+                            },
+                            onError = { error ->
+                                android.util.Log.e("VoluntarioViewModel", "❌ Error al enviar email: $error")
+                                // No bloquea el registro si falla el email
+                            }
+                        )
+                    }
+                }
 
                 _isLoading.value = false
                 onSuccess()
