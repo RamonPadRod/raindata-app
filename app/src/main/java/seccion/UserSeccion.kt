@@ -22,6 +22,23 @@ object UserSession {
         return currentUser != null
     }
 
+    /**
+     * Verifica si hay una sesión activa válida sin efectos secundarios.
+     * Útil para detectar si el usuario estaba logueado antes de un Configuration Change
+     * (rotación, cambio de tema, bluetooth, etc.)
+     */
+    fun hasActiveSession(): Boolean {
+        return currentUser != null && currentUser?.estado_aprobacion != null
+    }
+
+    /**
+     * Obtiene el estado de aprobación del usuario actual.
+     * Retorna null si no hay sesión activa.
+     */
+    fun getApprovalStatus(): String? {
+        return currentUser?.estado_aprobacion
+    }
+
     fun getUserRole(): String {
         return currentUser?.tipo_usuario ?: "Sin rol"
     }

@@ -7,8 +7,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.viewmodel.compose.viewModel
-import hn.unah.raindata.data.database.entities.Pluviometro
 import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.ui.ui.*  // <-- ESTA LÍNEA ES CRÍTICA
 import hn.unah.raindata.ui.theme.RainDataTheme
@@ -59,11 +59,33 @@ class MainActivity : ComponentActivity() {
                 val pluviometroViewModel: PluviometroViewModel = viewModel()
                 val datoMeteorologicoViewModel: DatoMeteorologicoViewModel = viewModel()
 
-                var pantallaActual by remember { mutableStateOf(Pantalla.LOGIN) }
-                var emailRegistrado by remember { mutableStateOf("") }
-                var firebaseUidRegistrado by remember { mutableStateOf("") }
-                var pluviometroSeleccionado by remember { mutableStateOf<Pluviometro?>(null) }
-                var datoMeteorologicoSeleccionado by remember { mutableStateOf<hn.unah.raindata.data.database.entities.DatoMeteorologico?>(null) }
+                // rememberSaveable: sobrevive a Configuration Changes (rotación, tema, bluetooth)
+                var pantallaActual by rememberSaveable { mutableStateOf(Pantalla.LOGIN) }
+                var emailRegistrado by rememberSaveable { mutableStateOf("") }
+                var firebaseUidRegistrado by rememberSaveable { mutableStateOf("") }
+                // Guardar solo IDs (String) en lugar de objetos completos (no serializables)
+                var pluviometroSeleccionadoId by rememberSaveable { mutableStateOf<String?>(null) }
+                var datoMeteorologicoSeleccionadoId by rememberSaveable { mutableStateOf<String?>(null) }
+
+                // Derivar objetos completos desde los IDs usando los StateFlows de los ViewModels
+                val pluviometrosState by pluviometroViewModel.pluviometros.collectAsState()
+                val datosMeteorologicosState by datoMeteorologicoViewModel.datosMeteorologicos.collectAsState()
+                val pluviometroSeleccionado = pluviometroSeleccionadoId?.let { id ->
+                    pluviometrosState.find { it.id == id }
+                }
+                val datoMeteorologicoSeleccionado = datoMeteorologicoSeleccionadoId?.let { id ->
+                    datosMeteorologicosState.find { it.id == id }
+                }
+
+                // Fallback: Si hay un ID guardado pero el ViewModel aún no tiene los datos cargados
+                // (ocurre después de un Configuration Change), cargar los datos necesarios
+                LaunchedEffect(datoMeteorologicoSeleccionadoId, datosMeteorologicosState) {
+                    val id = datoMeteorologicoSeleccionadoId
+                    if (id != null && datosMeteorologicosState.none { it.id == id }) {
+                        // Los datos no están cargados aún, cargarlos
+                        datoMeteorologicoViewModel.cargarTodosDatos()
+                    }
+                }
 
                 var intentosSalir by remember { mutableStateOf(0) }
                 val scope = rememberCoroutineScope()
@@ -107,12 +129,12 @@ class MainActivity : ComponentActivity() {
                         Pantalla.REGISTRO_DATO_METEOROLOGICO -> pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                         Pantalla.DETALLES_PLUVIOMETRO -> {
                             pantallaActual = Pantalla.LISTA_PLUVIOMETROS
-                            pluviometroSeleccionado = null
+                            pluviometroSeleccionadoId = null
                         }
                         Pantalla.EDITAR_PLUVIOMETRO -> pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
                         Pantalla.DETALLES_DATO_METEOROLOGICO -> {
                             pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
-                            datoMeteorologicoSeleccionado = null  // ✅ CAMBIO AQUÍ
+                            datoMeteorologicoSeleccionadoId = null
                         }
                         Pantalla.EDITAR_DATO_METEOROLOGICO -> pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
                     }
@@ -120,8 +142,21 @@ class MainActivity : ComponentActivity() {
 
                 when (pantallaActual) {
                     Pantalla.LOGIN -> {
+                        // Protección contra Configuration Changes (rotación, tema, bluetooth):
+                        // Si el usuario ya tenía sesión activa, redirigir en lugar de destruirla
                         LaunchedEffect(Unit) {
-                            UserSession.logout()
+                            if (UserSession.hasActiveSession()) {
+                                // El usuario llegó aquí por un Configuration Change, redirigir
+                                when (UserSession.getApprovalStatus()) {
+                                    "Aprobado" -> pantallaActual = Pantalla.HOME
+                                    "Pendiente" -> pantallaActual = Pantalla.SOLICITUD_PENDIENTE
+                                    else -> {
+                                        // Solo hacer logout si el estado es Rechazado o desconocido
+                                        UserSession.logout()
+                                    }
+                                }
+                            }
+                            // Si NO hay sesión activa, no hacemos nada: el usuario ya está en LOGIN correctamente
                         }
 
                         LoginScreen(
@@ -379,11 +414,11 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onVerDetalles = { pluviometro ->
-                                            pluviometroSeleccionado = pluviometro
+                                            pluviometroSeleccionadoId = pluviometro.id
                                             pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
                                         },
                                         onEditarPluviometro = { pluviometro ->
-                                            pluviometroSeleccionado = pluviometro
+                                            pluviometroSeleccionadoId = pluviometro.id
                                             pantallaActual = Pantalla.EDITAR_PLUVIOMETRO
                                         }
                                     )
@@ -409,7 +444,7 @@ class MainActivity : ComponentActivity() {
                                             pluviometroViewModel = pluviometroViewModel,
                                             onNavigateBack = {
                                                 pantallaActual = Pantalla.LISTA_PLUVIOMETROS
-                                                pluviometroSeleccionado = null
+                                                pluviometroSeleccionadoId = null
                                             },
                                             onEditar = {
                                                 pantallaActual = Pantalla.EDITAR_PLUVIOMETRO
@@ -426,14 +461,14 @@ class MainActivity : ComponentActivity() {
                                             voluntarioViewModel = voluntarioViewModel,
                                             onPluviometroActualizado = {
                                                 pantallaActual = Pantalla.LISTA_PLUVIOMETROS
-                                                pluviometroSeleccionado = null
+                                                pluviometroSeleccionadoId = null
                                             },
                                             onNavigateBack = {
                                                 pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
                                             },
                                             onAccesoDenegado = {
                                                 pantallaActual = Pantalla.LISTA_PLUVIOMETROS
-                                                pluviometroSeleccionado = null
+                                                pluviometroSeleccionadoId = null
                                             }
                                         )
                                     }
@@ -448,11 +483,11 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onVerDetalles = { dato ->
-                                            datoMeteorologicoSeleccionado = dato  // ✅ CAMBIO AQUÍ
+                                            datoMeteorologicoSeleccionadoId = dato.id
                                             pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
                                         },
                                         onEditarDato = { dato ->
-                                            datoMeteorologicoSeleccionado = dato  // ✅ CAMBIO AQUÍ
+                                            datoMeteorologicoSeleccionadoId = dato.id
                                             pantallaActual = Pantalla.EDITAR_DATO_METEOROLOGICO
                                         }
                                     )
@@ -481,7 +516,7 @@ class MainActivity : ComponentActivity() {
                                             datoMeteorologicoViewModel = datoMeteorologicoViewModel,
                                             onNavigateBack = {
                                                 pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
-                                                datoMeteorologicoSeleccionado = null
+                                                datoMeteorologicoSeleccionadoId = null
                                             },
                                             onEditar = {
                                                 pantallaActual = Pantalla.EDITAR_DATO_METEOROLOGICO
@@ -497,7 +532,7 @@ class MainActivity : ComponentActivity() {
                                             datoMeteorologicoViewModel = datoMeteorologicoViewModel,
                                             onDatoActualizado = {
                                                 pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
-                                                datoMeteorologicoSeleccionado = null
+                                                datoMeteorologicoSeleccionadoId = null
                                             },
                                             onNavigateBack = {
                                                 pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
