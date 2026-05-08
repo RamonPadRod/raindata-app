@@ -277,7 +277,7 @@ fun RecuperarPasswordSolicitud(
             onValueChange = onEmailChange,
             label = {
                 Text(
-                    "Correo Electrónico",
+                    "Correo electrónico",
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
                     maxLines = 1
@@ -339,7 +339,7 @@ fun RecuperarPasswordSolicitud(
 
         // Botón enviar
         RevoclimapButton(
-            text = "Enviar Enlace",
+            text = "Enviar enlace",
             onClick = onEnviar,
             enabled = !isLoading && email.isNotBlank(),
             isLoading = isLoading,
@@ -416,7 +416,7 @@ fun RecuperarPasswordConfirmacion(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "¡Correo Enviado!",
+            text = "¡Correo enviado!",
             fontSize = if (isSmallPhone) 26.sp else 28.sp,
             fontWeight = FontWeight.Bold,
             color = RainDataColors.VerdePrincipal
@@ -504,7 +504,7 @@ fun RecuperarPasswordConfirmacion(
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = "Volver al Inicio",
+                text = "Volver al inicio",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = RainDataColors.Blanco

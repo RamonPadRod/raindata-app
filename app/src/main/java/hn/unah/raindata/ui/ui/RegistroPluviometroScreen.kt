@@ -64,7 +64,7 @@ fun RegistroPluviometroScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "⚠️ Acceso Denegado",
+                        text = "⚠️ Acceso denegado",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -262,7 +262,7 @@ fun RegistroPluviometroScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Registro de Pluviómetro",
+                text = "Registro de pluviómetro",
                 style = MaterialTheme.typography.headlineMedium
             )
 
@@ -284,7 +284,7 @@ fun RegistroPluviometroScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "🔒 Registrando como Administrador: ${usuarioActual?.nombre}",
+                        text = "🔒 Registrando como administrador: ${usuarioActual?.nombre}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -298,7 +298,7 @@ fun RegistroPluviometroScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Información del Pluviómetro",
+                        text = "Información del pluviómetro",
                         style = MaterialTheme.typography.titleMedium
                     )
 
@@ -306,7 +306,7 @@ fun RegistroPluviometroScreen(
                     OutlinedTextField(
                         value = codigoGenerado,
                         onValueChange = { },
-                        label = { Text("Código del Pluviómetro") },
+                        label = { Text("Código del pluviómetro") },
                         readOnly = true,
                         enabled = false,
                         supportingText = {
@@ -336,7 +336,7 @@ fun RegistroPluviometroScreen(
                             value = voluntarioSeleccionado?.nombre ?: "",
                             onValueChange = { },
                             readOnly = true,
-                            label = { Text("Asignar a Voluntario *") },
+                            label = { Text("Asignar a voluntario *") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVoluntario) },
                             isError = errorVoluntario != null,
                             supportingText = {
@@ -585,7 +585,7 @@ fun RegistroPluviometroScreen(
                     ) {
                         Icon(Icons.Default.MyLocation, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (mostrarMapa) "Ocultar Mapa" else "Seleccionar Ubicación en Mapa")
+                        Text(if (mostrarMapa) "Ocultar mapa" else "Seleccionar ubicación en mapa")
                     }
 
                     // Mapa
@@ -613,7 +613,7 @@ fun RegistroPluviometroScreen(
                                 ubicacionSeleccionada?.let { ubicacion ->
                                     Marker(
                                         state = MarkerState(position = ubicacion),
-                                        title = "Ubicación del Pluviómetro"
+                                        title = "Ubicación del pluviómetro"
                                     )
                                 }
                             }

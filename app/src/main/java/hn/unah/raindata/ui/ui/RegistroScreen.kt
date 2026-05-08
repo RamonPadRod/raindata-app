@@ -233,7 +233,7 @@ fun RegistroFormPanel(
             ) {
                 // ✅ SIN LOGOS, SIN REVOCLIMAP - Solo título directo
                 Text(
-                    text = if (esPrimerUsuario) "Crear Administrador" else "Crear Cuenta",
+                    text = if (esPrimerUsuario) "Crear administrador" else "Crear cuenta",
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     color = RainDataColors.VerdePrincipal
@@ -261,7 +261,7 @@ fun RegistroFormPanel(
                     onValueChange = onNombreChange,
                     label = {
                         Text(
-                            "Nombre Completo",
+                            "Nombre completo",
                             fontWeight = FontWeight.Medium,
                             fontSize = 14.sp,
                             maxLines = 1
@@ -351,7 +351,7 @@ fun RegistroFormPanel(
                     onValueChange = onEmailChange,
                     label = {
                         Text(
-                            "Correo Electrónico",
+                            "Correo electrónico",
                             fontWeight = FontWeight.Medium,
                             fontSize = 14.sp,
                             maxLines = 1
@@ -423,7 +423,7 @@ fun RegistroFormPanel(
                 PasswordFieldWithValidation(
                     value = confirmarPassword,
                     onValueChange = onConfirmarPasswordChange,
-                    label = "Confirmar Contraseña",
+                    label = "Confirmar contraseña",
                     placeholder = "Reingrese contraseña",
                     passwordVisible = confirmarPasswordVisible,
                     onVisibilityToggle = onConfirmarPasswordVisibilityToggle,
@@ -444,7 +444,7 @@ fun RegistroFormPanel(
 
                 // Botón de registro
                 RevoclimapButton(
-                    text = if (esPrimerUsuario) "Crear Admin" else "Registrarse",
+                    text = if (esPrimerUsuario) "Crear admin" else "Registrarse",
                     onClick = onRegistro,
                     enabled = !isLoading,
                     isLoading = isLoading,
@@ -473,7 +473,7 @@ fun RegistroFormPanel(
                         contentPadding = PaddingValues(4.dp)
                     ) {
                         Text(
-                            text = "Iniciar Sesión",
+                            text = "Iniciar sesión",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = RainDataColors.VerdePrincipal

@@ -192,7 +192,7 @@ fun RegistroDatoMeteorologicoScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Registro de Dato Meteorológico",
+                text = "Registro de dato meteorológico",
                 style = MaterialTheme.typography.headlineMedium
             )
 
@@ -362,7 +362,7 @@ fun RegistroDatoMeteorologicoScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Fecha y Hora de Lectura",
+                        text = "Fecha y hora de lectura",
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -376,7 +376,7 @@ fun RegistroDatoMeteorologicoScreen(
                     OutlinedTextField(
                         value = fechaLectura,
                         onValueChange = { fechaLectura = it },
-                        label = { Text("Fecha de Lectura (yyyy-MM-dd) *") },
+                        label = { Text("Fecha de lectura (yyyy-MM-dd) *") },
                         placeholder = { Text("2025-10-31") },
                         leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
                         isError = errorFechaLectura != null,
@@ -396,7 +396,7 @@ fun RegistroDatoMeteorologicoScreen(
                     OutlinedTextField(
                         value = horaLectura,
                         onValueChange = { horaLectura = it },
-                        label = { Text("Hora de Lectura (HH:mm) *") },
+                        label = { Text("Hora de lectura (HH:mm) *") },
                         placeholder = { Text("14:30") },
                         leadingIcon = { Icon(Icons.Default.AccessTime, contentDescription = null) },
                         isError = errorHoraLectura != null,
@@ -424,7 +424,7 @@ fun RegistroDatoMeteorologicoScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Fecha y Hora de Registro",
+                        text = "Fecha y hora de registro",
                         style = MaterialTheme.typography.titleMedium
                     )
 
@@ -468,7 +468,7 @@ fun RegistroDatoMeteorologicoScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Datos Meteorológicos",
+                        text = "Datos meteorológicos",
                         style = MaterialTheme.typography.titleMedium
                     )
 
@@ -503,7 +503,7 @@ fun RegistroDatoMeteorologicoScreen(
                                 temperaturaMaxima = it.filter { char -> char.isDigit() || char == '.' || char == '-' }
                             }
                         },
-                        label = { Text("Temperatura Máxima (°C) - Opcional") },
+                        label = { Text("Temperatura máxima (°C) - Opcional") },
                         placeholder = { Text("30.5") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         isError = errorTempMax != null,
@@ -527,7 +527,7 @@ fun RegistroDatoMeteorologicoScreen(
                                 temperaturaMinima = it.filter { char -> char.isDigit() || char == '.' || char == '-' }
                             }
                         },
-                        label = { Text("Temperatura Mínima (°C) - Opcional") },
+                        label = { Text("Temperatura mínima (°C) - Opcional") },
                         placeholder = { Text("18.0") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         isError = errorTempMin != null || errorCoherenciaTemp != null,
@@ -557,7 +557,7 @@ fun RegistroDatoMeteorologicoScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Condiciones del Día",
+                        text = "Condiciones del día",
                         style = MaterialTheme.typography.titleMedium
                     )
 

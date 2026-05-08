@@ -106,7 +106,7 @@ fun DetallesDatoMeteorologicoScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Información Temporal",
+                            text = "Información temporal",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -167,7 +167,7 @@ fun DetallesDatoMeteorologicoScreen(
                     )
 
                     DetailRow(
-                        label = "Voluntario Responsable",
+                        label = "Voluntario responsable",
                         value = dato.voluntario_nombre,
                         icon = Icons.Default.Person
                     )
@@ -184,7 +184,7 @@ fun DetallesDatoMeteorologicoScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Datos Meteorológicos",
+                            text = "Datos meteorológicos",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -389,7 +389,7 @@ fun DetallesDatoMeteorologicoScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-            title = { Text("Eliminar Registro") },
+            title = { Text("Eliminar registro") },
             text = {
                 Column {
                     Text("¿Estás seguro de que deseas eliminar este registro meteorológico?")

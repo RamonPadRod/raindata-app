@@ -278,7 +278,7 @@ fun RegistroVoluntarioScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = if (soloAdministrador) "Registro de Administrador" else "Registro de Voluntario",
+                text = if (soloAdministrador) "Registro de administrador" else "Registro de voluntario",
                 style = MaterialTheme.typography.headlineMedium
             )
 
@@ -289,7 +289,7 @@ fun RegistroVoluntarioScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Información Personal",
+                        text = "Información personal",
                         style = MaterialTheme.typography.titleMedium
                     )
 
@@ -348,7 +348,7 @@ fun RegistroVoluntarioScreen(
                             modifier = Modifier.padding(12.dp)
                         ) {
                             Text(
-                                text = "Tipo de Documento *",
+                                text = "Tipo de documento *",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -365,7 +365,7 @@ fun RegistroVoluntarioScreen(
                                         pasaporte = ""
                                         errorPasaporte = null
                                     },
-                                    label = { Text("DNI Hondureño") },
+                                    label = { Text("DNI hondureño") },
                                     modifier = Modifier.weight(1f)
                                 )
                                 FilterChip(
@@ -472,7 +472,7 @@ fun RegistroVoluntarioScreen(
                         value = fechaNacimiento,
                         onValueChange = { },
                         readOnly = true,
-                        label = { Text("Fecha de Nacimiento *") },
+                        label = { Text("Fecha de nacimiento *") },
                         placeholder = { Text("AAAA-MM-DD") },
                         trailingIcon = {
                             IconButton(onClick = { showDatePicker = true }) {
@@ -645,7 +645,7 @@ fun RegistroVoluntarioScreen(
                             value = "Administrador",
                             onValueChange = { },
                             readOnly = true,
-                            label = { Text("Tipo de Usuario *") },
+                            label = { Text("Tipo de usuario *") },
                             enabled = false,
                             supportingText = {
                                 Text(
@@ -671,7 +671,7 @@ fun RegistroVoluntarioScreen(
                                 value = tipoUsuario,
                                 onValueChange = { },
                                 readOnly = true,
-                                label = { Text("Tipo de Usuario *") },
+                                label = { Text("Tipo de usuario *") },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTipoUsuario) },
                                 isError = errorTipoUsuario != null,
                                 supportingText = {
@@ -878,7 +878,7 @@ fun RegistroVoluntarioScreen(
                         onValueChange = {
                             if (it.length <= 15) aldea = it
                         },
-                        label = { Text("Aldea o Colonia *") },
+                        label = { Text("Aldea o colonia *") },
                         isError = errorAldea != null && aldea.isNotBlank(),
                         supportingText = {
                             Row(

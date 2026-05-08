@@ -61,7 +61,7 @@ fun EditarPluviometroScreen(
                     horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "⚠️ Acceso Denegado",
+                        text = "⚠️ Acceso denegado",
                         style = MaterialTheme.typography.headlineMedium,
                         color = MaterialTheme.colorScheme.error
                     )
@@ -220,7 +220,7 @@ fun EditarPluviometroScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Editar Pluviómetro") },
+                title = { Text("Editar pluviómetro") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -246,7 +246,7 @@ fun EditarPluviometroScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Código del Pluviómetro",
+                        text = "Código del pluviómetro",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
@@ -269,7 +269,7 @@ fun EditarPluviometroScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Información del Pluviómetro",
+                        text = "Información del pluviómetro",
                         style = MaterialTheme.typography.titleMedium
                     )
 
@@ -281,7 +281,7 @@ fun EditarPluviometroScreen(
                             value = voluntarioSeleccionado?.nombre ?: "",
                             onValueChange = { },
                             readOnly = true,
-                            label = { Text("Responsable del Pluviómetro *") },
+                            label = { Text("Responsable del pluviómetro *") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedVoluntario) },
                             isError = errorVoluntario != null,
                             supportingText = {
@@ -486,7 +486,7 @@ fun EditarPluviometroScreen(
                     ) {
                         Icon(Icons.Default.MyLocation, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (mostrarMapa) "Ocultar Mapa" else "Modificar Ubicación")
+                        Text(if (mostrarMapa) "Ocultar Mapa" else "Modificar ubicación")
                     }
 
                     if (mostrarMapa) {
@@ -512,7 +512,7 @@ fun EditarPluviometroScreen(
                             ) {
                                 Marker(
                                     state = MarkerState(position = ubicacionSeleccionada),
-                                    title = "Ubicación del Pluviómetro"
+                                    title = "Ubicación del pluviómetro"
                                 )
                             }
                         }
@@ -579,7 +579,7 @@ fun EditarPluviometroScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Text("Guardar Cambios")
+                        Text("Guardar cambios")
                     }
                 }
 

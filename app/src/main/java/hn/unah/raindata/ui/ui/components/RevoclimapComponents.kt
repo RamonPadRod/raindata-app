@@ -88,7 +88,7 @@ fun InstitutionalHeader(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Red de Voluntarios Climáticos del Paraíso",
+                text = "Red de voluntarios climáticos del Paraíso",
                 fontSize = (13 * appNameSize).sp,
                 color = RainDataColors.TextoSobreFondo.copy(alpha = 0.85f),
                 fontWeight = FontWeight.Medium,

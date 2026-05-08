@@ -123,7 +123,7 @@ fun PantallaSolicitudPendiente(
 
                                 // Título
                                 Text(
-                                    text = "⏳ Solicitud Pendiente",
+                                    text = "⏳ Solicitud pendiente",
                                     fontSize = 26.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = RainDataColors.VerdePrincipal,
@@ -290,7 +290,7 @@ fun PantallaSolicitudPendiente(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                "Cancelar Solicitud",
+                                "Cancelar solicitud",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -315,7 +315,7 @@ fun PantallaSolicitudPendiente(
             },
             title = {
                 Text(
-                    "⚠️ Cancelar Solicitud",
+                    "⚠️ Cancelar solicitud",
                     fontWeight = FontWeight.Bold
                 )
             },
@@ -368,12 +368,12 @@ fun PantallaSolicitudPendiente(
                 ) {
                     Icon(Icons.Default.DeleteForever, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Sí, Cancelar")
+                    Text("Sí, cancelar")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCancelarDialog = false }) {
-                    Text("No, Volver")
+                    Text("No, volver")
                 }
             }
         )

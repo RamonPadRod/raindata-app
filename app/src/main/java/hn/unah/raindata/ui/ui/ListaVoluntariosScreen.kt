@@ -42,7 +42,7 @@ fun ListaVoluntariosScreen(
                 FloatingActionButton(
                     onClick = onAgregarVoluntario
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Agregar Voluntario")
+                    Icon(Icons.Default.Add, contentDescription = "Agregar voluntario")
                 }
             }
         }
@@ -70,7 +70,7 @@ fun ListaVoluntariosScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Voluntarios Registrados",
+                            text = "Voluntarios registrados",
                             style = MaterialTheme.typography.headlineSmall
                         )
                         Text(
@@ -279,7 +279,7 @@ fun ListaVoluntariosScreen(
         AlertDialog(
             onDismissRequest = { showNoPermissionDialog = false },
             icon = { Icon(Icons.Default.Lock, contentDescription = null) },
-            title = { Text("Permiso Denegado") },
+            title = { Text("Permiso denegado") },
             text = { Text(noPermissionMessage) },
             confirmButton = {
                 Button(onClick = { showNoPermissionDialog = false }) {
@@ -504,10 +504,10 @@ fun VoluntarioCard(
         AlertDialog(
             onDismissRequest = { showAprobarDialog = false },
             icon = { Icon(Icons.Default.Check, contentDescription = null) },
-            title = { Text("Aprobar Administrador") },
+            title = { Text("Aprobar administrador") },
             text = {
                 Column {
-                    Text("¿Estás seguro de que deseas aprobar a ${voluntario.nombre} como Administrador?")
+                    Text("¿Estás seguro de que deseas aprobar a ${voluntario.nombre} como administrador?")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Esta persona tendrá acceso completo al sistema.",
@@ -539,7 +539,7 @@ fun VoluntarioCard(
         AlertDialog(
             onDismissRequest = { showRechazarDialog = false },
             icon = { Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Rechazar Solicitud") },
+            title = { Text("Rechazar solicitud") },
             text = { Text("¿Estás seguro de que deseas rechazar la solicitud de ${voluntario.nombre}?") },
             confirmButton = {
                 Button(
@@ -567,7 +567,7 @@ fun VoluntarioCard(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-            title = { Text("Eliminar Voluntario") },
+            title = { Text("Eliminar voluntario") },
             text = { Text("¿Estás seguro de que deseas eliminar a ${voluntario.nombre}? Esta acción no se puede deshacer.") },
             confirmButton = {
                 Button(

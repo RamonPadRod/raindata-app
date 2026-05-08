@@ -254,7 +254,7 @@ fun LoginBrandingPanel(
 
         // Mensaje de bienvenida
         Text(
-            text = "Monitoreo Climático\nComunitario",
+            text = "Monitoreo climático\ncomunitario",
             fontSize = 18.sp,
             color = RainDataColors.TextoSobreFondo.copy(alpha = 0.9f),
             lineHeight = 26.sp,
@@ -322,7 +322,7 @@ fun InstitutionalHeaderLogin(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "Red de Voluntarios Climáticos del Paraíso",
+            text = "Red de voluntarios climáticos del Paraíso",
             fontSize = if (isTablet) 14.sp else 13.sp,
             color = RainDataColors.TextoPrincipal, // Negro visible
             fontWeight = FontWeight.Medium,
@@ -394,7 +394,7 @@ fun LoginFormPanel(
                 }
 
                 Text(
-                    text = "Iniciar Sesión",
+                    text = "Iniciar sesión",
                     fontSize = if (isCompact) 20.sp else 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = RainDataColors.VerdePrincipal
@@ -418,7 +418,7 @@ fun LoginFormPanel(
                     onValueChange = onEmailChange,
                     label = {
                         Text(
-                            "Correo Electrónico",
+                            "Correo electrónico",
                             fontWeight = FontWeight.Medium,
                             fontSize = 14.sp,
                             maxLines = 1
@@ -578,7 +578,7 @@ fun LoginFormPanel(
 
                 // Botón de login
                 RevoclimapButton(
-                    text = "Iniciar Sesión",
+                    text = "Iniciar sesión",
                     onClick = onLogin,
                     enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
                     isLoading = isLoading,

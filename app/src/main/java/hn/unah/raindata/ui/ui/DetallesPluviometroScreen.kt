@@ -41,7 +41,7 @@ fun DetallesPluviometroScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Detalles del Pluviómetro") },
+                title = { Text("Detalles del pluviómetro") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
@@ -99,7 +99,7 @@ fun DetallesPluviometroScreen(
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        text = "Código del Pluviómetro",
+                        text = "Código del pluviómetro",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -137,7 +137,7 @@ fun DetallesPluviometroScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Ubicación Geográfica",
+                            text = "Ubicación geográfica",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -263,7 +263,7 @@ fun DetallesPluviometroScreen(
                     )
 
                     DetailRow(
-                        label = "ID Responsable",
+                        label = "ID responsable",
                         value = pluviometro.responsable_uid,
                         icon = Icons.Default.Numbers
                     )
@@ -307,7 +307,7 @@ fun DetallesPluviometroScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Información del Registro",
+                            text = "Información del registro",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
@@ -327,7 +327,7 @@ fun DetallesPluviometroScreen(
 
                     pluviometro.fecha_modificacion?.let { timestamp ->
                         DetailRow(
-                            label = "Última Modificación",
+                            label = "Última modificación",
                             value = dateFormat.format(timestamp.toDate()),
                             icon = Icons.Default.Update
                         )
@@ -373,7 +373,7 @@ fun DetallesPluviometroScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-            title = { Text("Eliminar Pluviómetro") },
+            title = { Text("Eliminar pluviómetro") },
             text = {
                 Column {
                     Text("¿Estás seguro de que deseas eliminar el pluviómetro ${pluviometro.numero_registro}?")

@@ -59,14 +59,14 @@ fun MainLayout(
                         Text(
                             text = when(currentScreen) {
                                 "HOME" -> "DatosLluvia"
-                                "VOLUNTARIOS" -> "Gestión de Voluntarios"
+                                "VOLUNTARIOS" -> "Gestión de voluntarios"
                                 "REGISTRO_VOLUNTARIO" -> "Registro de Voluntario"
-                                "PLUVIOMETROS" -> "Gestión de Pluviómetros"
+                                "PLUVIOMETROS" -> "Gestión de pluviómetros"
                                 "REGISTRO_PLUVIOMETRO" -> "Registro de Pluviómetro"
-                                "DATOS_METEOROLOGICOS" -> "Datos Meteorológicos"
-                                "REGISTRO_DATO_METEOROLOGICO" -> "Registro de Dato Meteorológico"
-                                "DATOS_PLUVIOMETRICOS" -> "Datos Pluviométricos"
-                                "DATOS_CLIMATICOS" -> "Datos Climáticos"
+                                "DATOS_METEOROLOGICOS" -> "Datos meteorológicos"
+                                "REGISTRO_DATO_METEOROLOGICO" -> "Registro de dato meteorológico"
+                                "DATOS_PLUVIOMETRICOS" -> "Datos pluviométricos"
+                                "DATOS_CLIMATICOS" -> "Datos climáticos"
                                 else -> "DatosLluvia"
                             }
                         )
@@ -145,7 +145,7 @@ fun DrawerContent(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "Sistema Pluviométrico",
+                        text = "Sistema pluviométrico",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -164,7 +164,7 @@ fun DrawerContent(
 
             DrawerMenuItem(
                 icon = Icons.Default.Person,
-                title = "Gestión de Voluntarios",
+                title = "Gestión de voluntarios",
                 isSelected = currentScreen == "VOLUNTARIOS" || currentScreen == "REGISTRO_VOLUNTARIO",
                 isEnabled = true,
                 onClick = onNavigateToVoluntarios
@@ -172,7 +172,7 @@ fun DrawerContent(
 
             DrawerMenuItem(
                 icon = Icons.Default.LocationOn,
-                title = "Gestión de Pluviómetros",
+                title = "Gestión de pluviómetros",
                 isSelected = currentScreen == "PLUVIOMETROS" || currentScreen == "REGISTRO_PLUVIOMETRO",
                 isEnabled = true,
                 onClick = onNavigateToPluviometros
@@ -180,7 +180,7 @@ fun DrawerContent(
 
             DrawerMenuItem(
                 icon = Icons.Default.CloudQueue,
-                title = "Datos Meteorológicos",
+                title = "Datos meteorológicos",
                 isSelected = currentScreen == "DATOS_METEOROLOGICOS" || currentScreen == "REGISTRO_DATO_METEOROLOGICO",
                 isEnabled = true,
                 onClick = onNavigateToDatosMeteorologicos
@@ -188,7 +188,7 @@ fun DrawerContent(
 
             DrawerMenuItem(
                 icon = Icons.Default.WaterDrop,
-                title = "Datos Pluviométricos",
+                title = "Datos pluviométricos",
                 isSelected = currentScreen == "DATOS_PLUVIOMETRICOS",
                 isEnabled = false,
                 onClick = { /* Sin función por ahora */ }
@@ -196,7 +196,7 @@ fun DrawerContent(
 
             DrawerMenuItem(
                 icon = Icons.Default.Assessment,
-                title = "Reportes y Estadísticas",
+                title = "Reportes y estadísticas",
                 isSelected = false,
                 isEnabled = false,
                 onClick = { /* Sin función por ahora */ }

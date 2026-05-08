@@ -66,7 +66,7 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    text = "Sistema de Monitoreo Pluviométrico",
+                    text = "Sistema de monitoreo pluviométrico",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     textAlign = TextAlign.Center
@@ -112,7 +112,7 @@ fun HomeScreen(
         // Gestión de Voluntarios (Solo Administrador y Observador pueden ver)
         if (UserSession.canViewVoluntarios()) {
             MenuCard(
-                title = "Gestión de Voluntarios",
+                title = "Gestión de voluntarios",
                 description = "Administrar voluntarios y observadores del sistema",
                 icon = Icons.Default.Person,
                 isEnabled = true,
@@ -124,7 +124,7 @@ fun HomeScreen(
         // Gestión de Pluviómetros (Administrador, Voluntario y Observador)
         if (UserSession.canViewPluviometros()) {
             MenuCard(
-                title = "Gestión de Pluviómetros",
+                title = "Gestión de pluviómetros",
                 description = "Registrar y administrar pluviómetros en el sistema",
                 icon = Icons.Default.LocationOn,
                 isEnabled = true,
@@ -136,7 +136,7 @@ fun HomeScreen(
         // Datos Meteorológicos (Solo Administrador y Observador)
         if (UserSession.canViewDatosMeteorologicos()) {
             MenuCard(
-                title = "Datos Meteorológicos",
+                title = "Datos meteorológicos",
                 description = "Registrar datos meteorológicos y condiciones climáticas",
                 icon = Icons.Default.CloudQueue,
                 isEnabled = true,
@@ -147,7 +147,7 @@ fun HomeScreen(
 
         // Datos Pluviométricos (Próximamente)
         MenuCard(
-            title = "Datos Pluviométricos",
+            title = "Datos pluviométricos",
             description = "Registrar datos de precipitación y mediciones de lluvia",
             icon = Icons.Default.WaterDrop,
             isEnabled = false,
@@ -157,7 +157,7 @@ fun HomeScreen(
         // Reportes y Estadísticas (Solo Administrador y Observador)
         if (UserSession.canViewReports()) {
             MenuCard(
-                title = "Reportes y Estadísticas",
+                title = "Reportes y estadísticas",
                 description = "Generar reportes y visualizar estadísticas del sistema",
                 icon = Icons.Default.Assessment,
                 isEnabled = false,
@@ -177,7 +177,7 @@ fun HomeScreen(
         ) {
             Icon(Icons.Default.ExitToApp, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Cerrar Sesión")
+            Text("Cerrar sesión")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -227,7 +227,7 @@ fun HomeScreen(
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
             icon = { Icon(Icons.Default.ExitToApp, contentDescription = null) },
-            title = { Text("Cerrar Sesión") },
+            title = { Text("Cerrar sesión") },
             text = { Text("¿Estás seguro de que deseas cerrar sesión?") },
             confirmButton = {
                 Button(

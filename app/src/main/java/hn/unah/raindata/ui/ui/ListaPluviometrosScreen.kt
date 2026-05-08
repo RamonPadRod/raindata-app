@@ -72,7 +72,7 @@ fun ListaPluviometrosScreen(
                 FloatingActionButton(
                     onClick = onAgregarPluviometro
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Agregar Pluviómetro")
+                    Icon(Icons.Default.Add, contentDescription = "Agregar pluviómetro")
                 }
             }
         },
@@ -103,9 +103,9 @@ fun ListaPluviometrosScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = if (UserSession.shouldFilterPluviometrosByUser()) {
-                                    "Mis Pluviómetros"
+                                    "Mis pluviómetros"
                                 } else {
-                                    "Pluviómetros Registrados"
+                                    "Pluviómetros registrados"
                                 },
                                 style = MaterialTheme.typography.headlineSmall
                             )
@@ -357,7 +357,7 @@ fun ListaPluviometrosScreen(
         AlertDialog(
             onDismissRequest = { showNoPermissionDialog = false },
             icon = { Icon(Icons.Default.Lock, contentDescription = null) },
-            title = { Text("Permiso Denegado") },
+            title = { Text("Permiso denegado") },
             text = { Text(noPermissionMessage) },
             confirmButton = {
                 Button(onClick = { showNoPermissionDialog = false }) {
@@ -539,7 +539,7 @@ fun PluviometroCard(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-            title = { Text("Eliminar Pluviómetro") },
+            title = { Text("Eliminar pluviómetro") },
             text = { Text("¿Estás seguro de que deseas eliminar el pluviómetro ${pluviometro.numero_registro}? Esta acción no se puede deshacer.") },
             confirmButton = {
                 Button(

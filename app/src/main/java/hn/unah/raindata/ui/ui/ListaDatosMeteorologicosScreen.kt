@@ -70,7 +70,7 @@ fun ListaDatosMeteorologicosScreen(
                 FloatingActionButton(
                     onClick = onAgregarDato
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Agregar Dato Meteorológico")
+                    Icon(Icons.Default.Add, contentDescription = "Agregar dato meteorológico")
                 }
             }
         },
@@ -101,9 +101,9 @@ fun ListaDatosMeteorologicosScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = if (UserSession.shouldFilterDatosMeteorologicosByUser()) {
-                                    "Mis Datos Meteorológicos"
+                                    "Mis datos meteorológicos"
                                 } else {
-                                    "Datos Meteorológicos"
+                                    "Datos meteorológicos"
                                 },
                                 style = MaterialTheme.typography.headlineSmall
                             )
@@ -349,7 +349,7 @@ fun ListaDatosMeteorologicosScreen(
         AlertDialog(
             onDismissRequest = { showNoPermissionDialog = false },
             icon = { Icon(Icons.Default.Lock, contentDescription = null) },
-            title = { Text("Permiso Denegado") },
+            title = { Text("Permiso denegado") },
             text = { Text(noPermissionMessage) },
             confirmButton = {
                 Button(onClick = { showNoPermissionDialog = false }) {
@@ -480,7 +480,7 @@ fun DatoMeteorologicoCard(
                         Spacer(modifier = Modifier.width(6.dp))
                         Column {
                             Text(
-                                text = "Temp. Máx",
+                                text = "Temp. máx",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -505,7 +505,7 @@ fun DatoMeteorologicoCard(
                         Spacer(modifier = Modifier.width(6.dp))
                         Column {
                             Text(
-                                text = "Temp. Mín",
+                                text = "Temp. mín",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -570,7 +570,7 @@ fun DatoMeteorologicoCard(
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
                 icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-                title = { Text("Eliminar Dato Meteorológico") },
+                title = { Text("Eliminar dato meteorológico") },
                 text = {
                     Column {
                         Text("¿Estás seguro de que deseas eliminar este registro?")
