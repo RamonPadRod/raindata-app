@@ -123,6 +123,14 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         _observacionesDraft.value = ""
     }
 
+    // ===== ESTADO DE NAVEGACIÓN (sub-pantalla activa de esta sección) =====
+    // Valores posibles: "LISTA" | "REGISTRO"
+    private val _subPantalla = MutableStateFlow("LISTA")
+    val subPantalla: StateFlow<String> = _subPantalla.asStateFlow()
+
+    fun setSubPantalla(valor: String) { _subPantalla.value = valor }
+    fun resetSubPantalla() { _subPantalla.value = "LISTA" }
+
     // ===== LISTENER EN TIEMPO REAL =====
     fun cargarVoluntarios() {
         // Cancelar listener anterior si existe

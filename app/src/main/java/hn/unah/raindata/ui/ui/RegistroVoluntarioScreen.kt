@@ -1086,7 +1086,10 @@ fun RegistroVoluntarioScreen(
                 }
 
                 OutlinedButton(
-                    onClick = { onVoluntarioGuardado("") },
+                    onClick = {
+                        viewModel.limpiarDraft()
+                        onVoluntarioGuardado("")
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Cancelar")

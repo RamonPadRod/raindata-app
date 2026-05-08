@@ -31,6 +31,15 @@ class DatoMeteorologicoViewModel : ViewModel() {
 
     private var datosListener: com.google.firebase.firestore.ListenerRegistration? = null
 
+    // ===== ESTADO DE NAVEGACIÓN (sub-pantalla activa de esta sección) =====
+    // Valores posibles: "LISTA" | "REGISTRO" | "DETALLES" | "EDITAR"
+    private val _subPantalla = MutableStateFlow("LISTA")
+    val subPantalla: StateFlow<String> = _subPantalla
+
+    fun setSubPantalla(valor: String) { _subPantalla.value = valor }
+    fun resetSubPantalla() { _subPantalla.value = "LISTA" }
+
+
     fun guardarDato(
         dato: DatoMeteorologico,
         onSuccess: () -> Unit,

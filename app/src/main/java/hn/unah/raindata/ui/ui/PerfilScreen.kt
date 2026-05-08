@@ -5,12 +5,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.ui.components.RevoclimapButton
 
@@ -37,15 +43,28 @@ fun PerfilScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // Auto-size: reduce la fuente hasta caber en 1 línea; si llega al mínimo, permite 2
+        var fontSize by remember { mutableStateOf(28.sp) }
+        var maxLinesActual by remember { mutableIntStateOf(1) }
+
         Text(
             text = currentUser?.nombre ?: "Usuario",
-            style = MaterialTheme.typography.headlineMedium,
+            fontSize = fontSize,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
+            maxLines = maxLinesActual,
+            overflow = TextOverflow.Clip,
+            modifier = Modifier.fillMaxWidth(),
+            onTextLayout = { result ->
+                if (result.didOverflowWidth || result.didOverflowHeight) {
+                    if (fontSize > 16.sp) {
+                        fontSize *= 0.88f
+                    } else {
+                        maxLinesActual = 2
+                    }
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(8.dp))

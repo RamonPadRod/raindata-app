@@ -165,18 +165,14 @@ fun LoginScreen(
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                             .padding(
-                                horizontal = when {
-                                    isTablet -> 80.dp
-                                    isSmallPhone -> 20.dp
-                                    else -> 24.dp
-                                },
-                                vertical = if (isCompact) 16.dp else 24.dp
+                                horizontal = 12.dp,
+                                vertical = 8.dp
                             ),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                        verticalArrangement = Arrangement.SpaceEvenly
                     ) {
                         if (!isCompact) {
-                            Spacer(modifier = Modifier.height(40.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
                         }
 
                         LoginFormPanel(
@@ -223,7 +219,7 @@ fun LoginScreen(
                         )
 
                         if (!isCompact) {
-                            Spacer(modifier = Modifier.height(40.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
                         }
                     }
                 }
@@ -281,8 +277,8 @@ fun LoginBrandingPanel(
 fun InstitutionalHeaderLogin(
     isTablet: Boolean
 ) {
-    // Logos MÁS GRANDES: 80dp móvil, 100dp tablet
-    val logoSize = if (isTablet) 100.dp else 80.dp
+    // Logos optimizados: 60dp móvil, 100dp tablet
+    val logoSize = if (isTablet) 100.dp else 60.dp
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
@@ -310,24 +306,28 @@ fun InstitutionalHeaderLogin(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Nombre REVOCLIMAP con mejor visibilidad
+        // Nombre REVOCLIMAP con tamaño responsivo
         Text(
             text = "REVOCLIMAP",
-            fontSize = if (isTablet) 36.sp else 32.sp,
+            fontSize = if (isTablet) 36.sp else 28.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = RainDataColors.VerdePrincipal, // Verde oscuro visible
-            letterSpacing = 2.sp
+            color = RainDataColors.VerdePrincipal,
+            letterSpacing = 2.sp,
+            textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
             text = "Red de voluntarios climáticos del Paraíso",
-            fontSize = if (isTablet) 14.sp else 13.sp,
-            color = RainDataColors.TextoPrincipal, // Negro visible
+            fontSize = 13.sp,
+            color = RainDataColors.TextoPrincipal,
             fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center,
-            letterSpacing = 0.5.sp
+            letterSpacing = 0.5.sp,
+            maxLines = 2,
+            softWrap = true,
+            lineHeight = 18.sp
         )
     }
 }
@@ -371,7 +371,10 @@ fun LoginFormPanel(
         )
     ) {
         Card(
-            modifier = modifier.wrapContentHeight(),
+            modifier = modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.90f)
+                .padding(horizontal = 12.dp, vertical = 16.dp),
             shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(
                 containerColor = RainDataColors.FondoCard
@@ -380,37 +383,38 @@ fun LoginFormPanel(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .padding(
-                        horizontal = if (isSmallPhone) 20.dp else if (isCompact) 24.dp else 32.dp,
-                        vertical = if (isCompact) 24.dp else 32.dp
+                        horizontal = 20.dp,
+                        vertical = 12.dp
                     ),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
                 // Header con logos SOLO en modo vertical
                 if (!isTablet || configuration.screenWidthDp <= configuration.screenHeightDp) {
                     InstitutionalHeaderLogin(isTablet = isTablet)
-                    Spacer(modifier = Modifier.height(24.dp))
                 }
 
-                Text(
-                    text = "Iniciar sesión",
-                    fontSize = if (isCompact) 20.sp else 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = RainDataColors.VerdePrincipal
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Iniciar sesión",
+                        fontSize = if (isCompact) 20.sp else 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = RainDataColors.VerdePrincipal,
+                        textAlign = TextAlign.Center
+                    )
 
-                Spacer(modifier = Modifier.height(if (isCompact) 4.dp else 8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                Text(
-                    text = "Accede a la plataforma de monitoreo",
-                    fontSize = 13.sp,
-                    color = RainDataColors.TextoSecundario,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(if (isCompact) 20.dp else 28.dp))
+                    Text(
+                        text = "Accede a la plataforma de monitoreo",
+                        fontSize = 13.sp,
+                        color = RainDataColors.TextoSecundario,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
                 // Campo Email
                 OutlinedTextField(
@@ -525,15 +529,14 @@ fun LoginFormPanel(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Recuérdame y Olvidaste contraseña
-                Row(
+                // Recuérdame y Olvidaste contraseña en dos líneas para evitar recortes
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.End
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f, fill = false)
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
                             checked = rememberMe,
@@ -541,18 +544,17 @@ fun LoginFormPanel(
                             colors = CheckboxDefaults.colors(
                                 checkedColor = RainDataColors.VerdePrincipal,
                                 uncheckedColor = RainDataColors.GrisMedio
-                            )
+                            ),
+                            modifier = Modifier.size(32.dp)
                         )
                         Text(
                             text = "Recuérdame",
                             fontSize = 13.sp,
                             color = RainDataColors.TextoSecundario,
                             fontWeight = FontWeight.Medium,
-                            maxLines = 1
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
-
-                    Spacer(modifier = Modifier.width(8.dp))
 
                     TextButton(
                         onClick = onForgotPassword,
@@ -562,8 +564,7 @@ fun LoginFormPanel(
                             text = "¿Olvidaste tu contraseña?",
                             color = RainDataColors.VerdePrincipal,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -573,8 +574,6 @@ fun LoginFormPanel(
                     message = errorMessage,
                     visible = showError
                 )
-
-                Spacer(modifier = Modifier.height(20.dp))
 
                 // Botón de login
                 RevoclimapButton(
@@ -587,9 +586,7 @@ fun LoginFormPanel(
                     buttonScale = buttonScale
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Divider "o" - SIN botones sociales
+                // Divider "o"
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -611,8 +608,6 @@ fun LoginFormPanel(
                         thickness = 1.dp
                     )
                 }
-
-                Spacer(modifier = Modifier.height(20.dp))
 
                 // Enlace a registro
                 Row(

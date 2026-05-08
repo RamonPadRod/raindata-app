@@ -126,23 +126,38 @@ class MainActivity : ComponentActivity() {
                         Pantalla.REGISTRO_VOLUNTARIO -> {
                             if (UserSession.isLoggedIn()) {
                                 pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                                voluntarioViewModel.resetSubPantalla()
                             } else {
                                 authViewModel.cerrarSesion()
                                 pantallaActual = Pantalla.LOGIN
                             }
                         }
-                        Pantalla.REGISTRO_PLUVIOMETRO -> pantallaActual = Pantalla.LISTA_PLUVIOMETROS
-                        Pantalla.REGISTRO_DATO_METEOROLOGICO -> pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                        Pantalla.REGISTRO_PLUVIOMETRO -> {
+                            pantallaActual = Pantalla.LISTA_PLUVIOMETROS
+                            pluviometroViewModel.resetSubPantalla()
+                        }
+                        Pantalla.REGISTRO_DATO_METEOROLOGICO -> {
+                            pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                            datoMeteorologicoViewModel.resetSubPantalla()
+                        }
                         Pantalla.DETALLES_PLUVIOMETRO -> {
                             pantallaActual = Pantalla.LISTA_PLUVIOMETROS
                             pluviometroSeleccionadoId = null
+                            pluviometroViewModel.resetSubPantalla()
                         }
-                        Pantalla.EDITAR_PLUVIOMETRO -> pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
+                        Pantalla.EDITAR_PLUVIOMETRO -> {
+                            pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
+                            pluviometroViewModel.setSubPantalla("DETALLES")
+                        }
                         Pantalla.DETALLES_DATO_METEOROLOGICO -> {
                             pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                             datoMeteorologicoSeleccionadoId = null
+                            datoMeteorologicoViewModel.resetSubPantalla()
                         }
-                        Pantalla.EDITAR_DATO_METEOROLOGICO -> pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
+                        Pantalla.EDITAR_DATO_METEOROLOGICO -> {
+                            pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
+                            datoMeteorologicoViewModel.setSubPantalla("DETALLES")
+                        }
                     }
                 }
 
@@ -300,17 +315,30 @@ class MainActivity : ComponentActivity() {
                             onNavigateToHome = { pantallaActual = Pantalla.HOME },
                             onNavigateToVoluntarios = {
                                 if (UserSession.canViewVoluntarios()) {
-                                    pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                                    pantallaActual = when (voluntarioViewModel.subPantalla.value) {
+                                        "REGISTRO" -> Pantalla.REGISTRO_VOLUNTARIO
+                                        else -> Pantalla.LISTA_VOLUNTARIOS
+                                    }
                                 }
                             },
                             onNavigateToPluviometros = {
                                 if (UserSession.canViewPluviometros()) {
-                                    pantallaActual = Pantalla.LISTA_PLUVIOMETROS
+                                    pantallaActual = when (pluviometroViewModel.subPantalla.value) {
+                                        "DETALLES" -> Pantalla.DETALLES_PLUVIOMETRO
+                                        "EDITAR" -> Pantalla.EDITAR_PLUVIOMETRO
+                                        "REGISTRO" -> Pantalla.REGISTRO_PLUVIOMETRO
+                                        else -> Pantalla.LISTA_PLUVIOMETROS
+                                    }
                                 }
                             },
                             onNavigateToDatosMeteorologicos = {
                                 if (UserSession.canViewDatosMeteorologicos()) {
-                                    pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                                    pantallaActual = when (datoMeteorologicoViewModel.subPantalla.value) {
+                                        "DETALLES" -> Pantalla.DETALLES_DATO_METEOROLOGICO
+                                        "EDITAR" -> Pantalla.EDITAR_DATO_METEOROLOGICO
+                                        "REGISTRO" -> Pantalla.REGISTRO_DATO_METEOROLOGICO
+                                        else -> Pantalla.LISTA_DATOS_METEOROLOGICOS
+                                    }
                                 }
                             },
                             onNavigateToPerfil = { pantallaActual = Pantalla.PERFIL },
@@ -325,17 +353,30 @@ class MainActivity : ComponentActivity() {
                                     HomeScreen(
                                         onNavigateToVoluntarios = {
                                             if (UserSession.canViewVoluntarios()) {
-                                                pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                                                pantallaActual = when (voluntarioViewModel.subPantalla.value) {
+                                                    "REGISTRO" -> Pantalla.REGISTRO_VOLUNTARIO
+                                                    else -> Pantalla.LISTA_VOLUNTARIOS
+                                                }
                                             }
                                         },
                                         onNavigateToPluviometros = {
                                             if (UserSession.canViewPluviometros()) {
-                                                pantallaActual = Pantalla.LISTA_PLUVIOMETROS
+                                                pantallaActual = when (pluviometroViewModel.subPantalla.value) {
+                                                    "DETALLES" -> Pantalla.DETALLES_PLUVIOMETRO
+                                                    "EDITAR" -> Pantalla.EDITAR_PLUVIOMETRO
+                                                    "REGISTRO" -> Pantalla.REGISTRO_PLUVIOMETRO
+                                                    else -> Pantalla.LISTA_PLUVIOMETROS
+                                                }
                                             }
                                         },
                                         onNavigateToDatosMeteorologicos = {
                                             if (UserSession.canViewDatosMeteorologicos()) {
-                                                pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                                                pantallaActual = when (datoMeteorologicoViewModel.subPantalla.value) {
+                                                    "DETALLES" -> Pantalla.DETALLES_DATO_METEOROLOGICO
+                                                    "EDITAR" -> Pantalla.EDITAR_DATO_METEOROLOGICO
+                                                    "REGISTRO" -> Pantalla.REGISTRO_DATO_METEOROLOGICO
+                                                    else -> Pantalla.LISTA_DATOS_METEOROLOGICOS
+                                                }
                                             }
                                         },
                                         onLogout = {
@@ -356,6 +397,7 @@ class MainActivity : ComponentActivity() {
                                         onAgregarVoluntario = {
                                             if (UserSession.canCreateVoluntarios()) {
                                                 pantallaActual = Pantalla.REGISTRO_VOLUNTARIO
+                                                voluntarioViewModel.setSubPantalla("REGISTRO")
                                             }
                                         },
                                         onEditarVoluntario = { voluntario ->
@@ -370,6 +412,18 @@ class MainActivity : ComponentActivity() {
                                         emailPrecargado = emailRegistrado,
                                         firebaseUid = firebaseUidRegistrado,
                                         onVoluntarioGuardado = { tipoUsuario ->
+                                            if (tipoUsuario.isEmpty()) {
+                                                // ✅ CASO CANCELAR: Solo volver atrás y resetear navegación
+                                                voluntarioViewModel.resetSubPantalla()
+                                                if (UserSession.isLoggedIn()) {
+                                                    pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                                                } else {
+                                                    pantallaActual = Pantalla.LOGIN
+                                                }
+                                                return@RegistroVoluntarioScreen
+                                            }
+
+                                            // ✅ CASO GUARDAR: Flujo normal de espera y login
                                             scope.launch {
                                                 delay(1500)
                                                 val voluntario = voluntarioViewModel.buscarPorFirebaseUid(firebaseUidRegistrado)
@@ -424,15 +478,18 @@ class MainActivity : ComponentActivity() {
                                         onAgregarPluviometro = {
                                             if (UserSession.canCreatePluviometros()) {
                                                 pantallaActual = Pantalla.REGISTRO_PLUVIOMETRO
+                                                pluviometroViewModel.setSubPantalla("REGISTRO")
                                             }
                                         },
                                         onVerDetalles = { pluviometro ->
                                             pluviometroSeleccionadoId = pluviometro.id
                                             pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
+                                            pluviometroViewModel.setSubPantalla("DETALLES")
                                         },
                                         onEditarPluviometro = { pluviometro ->
                                             pluviometroSeleccionadoId = pluviometro.id
                                             pantallaActual = Pantalla.EDITAR_PLUVIOMETRO
+                                            pluviometroViewModel.setSubPantalla("EDITAR")
                                         }
                                     )
                                 }
@@ -443,6 +500,7 @@ class MainActivity : ComponentActivity() {
                                         voluntarioViewModel = voluntarioViewModel,
                                         onPluviometroGuardado = {
                                             pantallaActual = Pantalla.LISTA_PLUVIOMETROS
+                                            pluviometroViewModel.resetSubPantalla()
                                         },
                                         onAccesoDenegado = {
                                             pantallaActual = Pantalla.LISTA_PLUVIOMETROS
@@ -458,9 +516,11 @@ class MainActivity : ComponentActivity() {
                                             onNavigateBack = {
                                                 pantallaActual = Pantalla.LISTA_PLUVIOMETROS
                                                 pluviometroSeleccionadoId = null
+                                                pluviometroViewModel.resetSubPantalla()
                                             },
                                             onEditar = {
                                                 pantallaActual = Pantalla.EDITAR_PLUVIOMETRO
+                                                pluviometroViewModel.setSubPantalla("EDITAR")
                                             }
                                         )
                                     } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -475,11 +535,12 @@ class MainActivity : ComponentActivity() {
                                             pluviometroViewModel = pluviometroViewModel,
                                             voluntarioViewModel = voluntarioViewModel,
                                             onPluviometroActualizado = {
-                                                pantallaActual = Pantalla.LISTA_PLUVIOMETROS
-                                                pluviometroSeleccionadoId = null
+                                                pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
+                                                pluviometroViewModel.setSubPantalla("DETALLES")
                                             },
                                             onNavigateBack = {
                                                 pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
+                                                pluviometroViewModel.setSubPantalla("DETALLES")
                                             },
                                             onAccesoDenegado = {
                                                 pantallaActual = Pantalla.LISTA_PLUVIOMETROS
@@ -497,15 +558,18 @@ class MainActivity : ComponentActivity() {
                                         onAgregarDato = {
                                             if (UserSession.canCreateDatosMeteorologicos()) {
                                                 pantallaActual = Pantalla.REGISTRO_DATO_METEOROLOGICO
+                                                datoMeteorologicoViewModel.setSubPantalla("REGISTRO")
                                             }
                                         },
                                         onVerDetalles = { dato ->
                                             datoMeteorologicoSeleccionadoId = dato.id
                                             pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
+                                            datoMeteorologicoViewModel.setSubPantalla("DETALLES")
                                         },
                                         onEditarDato = { dato ->
                                             datoMeteorologicoSeleccionadoId = dato.id
                                             pantallaActual = Pantalla.EDITAR_DATO_METEOROLOGICO
+                                            datoMeteorologicoViewModel.setSubPantalla("EDITAR")
                                         }
                                     )
                                 }
@@ -517,6 +581,7 @@ class MainActivity : ComponentActivity() {
                                         pluviometroViewModel = pluviometroViewModel,
                                         onDatoGuardado = {
                                             pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
+                                            datoMeteorologicoViewModel.resetSubPantalla()
                                         },
                                         onNavegarARegistroPluviometro = {
                                             if (UserSession.canCreatePluviometros()) {
@@ -534,9 +599,11 @@ class MainActivity : ComponentActivity() {
                                             onNavigateBack = {
                                                 pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                                                 datoMeteorologicoSeleccionadoId = null
+                                                datoMeteorologicoViewModel.resetSubPantalla()
                                             },
                                             onEditar = {
                                                 pantallaActual = Pantalla.EDITAR_DATO_METEOROLOGICO
+                                                datoMeteorologicoViewModel.setSubPantalla("EDITAR")
                                             }
                                         )
                                     } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -550,11 +617,12 @@ class MainActivity : ComponentActivity() {
                                             datoId = dato.id,
                                             datoMeteorologicoViewModel = datoMeteorologicoViewModel,
                                             onDatoActualizado = {
-                                                pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
-                                                datoMeteorologicoSeleccionadoId = null
+                                                pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
+                                                datoMeteorologicoViewModel.setSubPantalla("DETALLES")
                                             },
                                             onNavigateBack = {
                                                 pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
+                                                datoMeteorologicoViewModel.setSubPantalla("DETALLES")
                                             }
                                         )
                                     } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

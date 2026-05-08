@@ -368,6 +368,7 @@ fun ListaPluviometrosScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PluviometroCard(
     pluviometro: Pluviometro,
@@ -505,7 +506,7 @@ fun PluviometroCard(
                     )
                 }
 
-                // Botones de acción
+                // Botones de acción en la parte superior derecha
                 Row {
                     IconButton(onClick = onVerDetalles) {
                         Icon(

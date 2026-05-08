@@ -145,14 +145,6 @@ fun HomeScreen(
             )
         }
 
-        // Datos Pluviométricos (Próximamente)
-        MenuCard(
-            title = "Datos pluviométricos",
-            description = "Registrar datos de precipitación y mediciones de lluvia",
-            icon = Icons.Default.WaterDrop,
-            isEnabled = false,
-            onClick = { }
-        )
 
         // Reportes y Estadísticas (Solo Administrador y Observador)
         if (UserSession.canViewReports()) {

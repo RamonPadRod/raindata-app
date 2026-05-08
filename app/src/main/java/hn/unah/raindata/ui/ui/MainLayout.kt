@@ -12,6 +12,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.CircleShape
 import hn.unah.raindata.data.session.UserSession
 import kotlinx.coroutines.launch
 
@@ -105,57 +110,70 @@ fun MainLayout(
             },
             bottomBar = {
                 if (UserSession.isLoggedIn()) {
-                    NavigationBar {
-                        NavigationBarItem(
-                            icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
-                            label = { Text("Inicio", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            selected = currentScreen == "HOME",
-                            alwaysShowLabel = false,
-                            onClick = onNavigateToHome
-                        )
-                        
-                        NavigationBarItem(
-                            icon = { Icon(Icons.Default.WaterDrop, contentDescription = "Pluviómetros") },
-                            label = { Text("Pluvió.", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            selected = currentScreen == "PLUVIOMETROS" || currentScreen == "REGISTRO_PLUVIOMETRO",
-                            alwaysShowLabel = false,
-                            onClick = onNavigateToPluviometros
-                        )
-                        
-                        NavigationBarItem(
-                            icon = { Icon(Icons.Default.BarChart, contentDescription = "Datos meteorológicos") },
-                            label = { Text("Clima", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            selected = currentScreen == "DATOS_METEOROLOGICOS" || currentScreen == "REGISTRO_DATO_METEOROLOGICO",
-                            alwaysShowLabel = false,
-                            onClick = onNavigateToDatosMeteorologicos
-                        )
-                        
-                        if (UserSession.canViewVoluntarios()) {
-                            NavigationBarItem(
-                                icon = { Icon(Icons.Default.People, contentDescription = "Voluntarios") },
-                                label = { Text("Volunt.", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                selected = currentScreen == "VOLUNTARIOS" || currentScreen == "REGISTRO_VOLUNTARIO",
-                                alwaysShowLabel = false,
-                                onClick = onNavigateToVoluntarios
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 3.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .windowInsetsPadding(NavigationBarDefaults.windowInsets)
+                                .height(80.dp),
+                            horizontalArrangement = Arrangement.SpaceAround,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CustomNavigationItem(
+                                icon = Icons.Default.Home,
+                                label = "Inicio",
+                                selected = currentScreen == "HOME",
+                                onClick = onNavigateToHome,
+                                modifier = Modifier.weight(1f)
+                            )
+                            
+                            CustomNavigationItem(
+                                icon = Icons.Default.WaterDrop,
+                                label = "Pluvió.",
+                                selected = currentScreen == "PLUVIOMETROS" || currentScreen == "REGISTRO_PLUVIOMETRO",
+                                onClick = onNavigateToPluviometros,
+                                modifier = Modifier.weight(1f)
+                            )
+                            
+                            CustomNavigationItem(
+                                icon = Icons.Default.Cloud,
+                                label = "Clima",
+                                selected = currentScreen == "DATOS_METEOROLOGICOS" || currentScreen == "REGISTRO_DATO_METEOROLOGICO",
+                                onClick = onNavigateToDatosMeteorologicos,
+                                modifier = Modifier.weight(1f)
+                            )
+                            
+                            if (UserSession.canViewVoluntarios()) {
+                                CustomNavigationItem(
+                                    icon = Icons.Default.People,
+                                    label = "Volunt.",
+                                    selected = currentScreen == "VOLUNTARIOS" || currentScreen == "REGISTRO_VOLUNTARIO",
+                                    onClick = onNavigateToVoluntarios,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            
+                            CustomNavigationItem(
+                                icon = Icons.Default.Assessment,
+                                label = "Reportes",
+                                selected = false,
+                                enabled = false,
+                                onClick = { },
+                                modifier = Modifier.weight(1f)
+                            )
+                            
+                            CustomNavigationItem(
+                                icon = Icons.Default.Person,
+                                label = "Perfil",
+                                selected = currentScreen == "PERFIL",
+                                onClick = onNavigateToPerfil,
+                                modifier = Modifier.weight(1f)
                             )
                         }
-                        
-                        NavigationBarItem(
-                            icon = { Icon(Icons.Default.Assessment, contentDescription = "Reportes") },
-                            label = { Text("Reportes", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            selected = false,
-                            enabled = false,
-                            alwaysShowLabel = false,
-                            onClick = { }
-                        )
-                        
-                        NavigationBarItem(
-                            icon = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
-                            label = { Text("Perfil", maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                            selected = currentScreen == "PERFIL",
-                            alwaysShowLabel = false,
-                            onClick = onNavigateToPerfil
-                        )
                     }
                 }
             }
@@ -348,4 +366,66 @@ fun DrawerMenuItem(
         onClick = if (isEnabled) onClick else { {} },
         modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp)
     )
+}
+
+@Composable
+private fun CustomNavigationItem(
+    icon: ImageVector,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = enabled,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .then(
+                        if (selected && enabled) {
+                            Modifier.background(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                shape = CircleShape
+                            )
+                        } else Modifier
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = if (!enabled) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                    } else if (selected) {
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+            if (selected && enabled) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
 }

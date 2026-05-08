@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.viewmodel.compose.viewModel
 import hn.unah.raindata.data.database.entities.Voluntario
 import hn.unah.raindata.data.session.UserSession
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
 fun ListaVoluntariosScreen(
     viewModel: VoluntarioViewModel = viewModel(),
     onAgregarVoluntario: () -> Unit = {},
+    onVerDetalles: (Voluntario) -> Unit = {},
     onEditarVoluntario: (Voluntario) -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
@@ -146,13 +148,13 @@ fun ListaVoluntariosScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 80.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(voluntarios) { voluntario ->
                         VoluntarioCard(
                             voluntario = voluntario,
-                            viewModel = viewModel,
+                            onVerDetalles = { onVerDetalles(voluntario) },
                             onEdit = {
                                 if (UserSession.canEditVoluntarios()) {
                                     onEditarVoluntario(voluntario)
@@ -185,14 +187,12 @@ fun ListaVoluntariosScreen(
                             },
                             onAprobar = { voluntarioParaAprobar ->
                                 scope.launch {
-                                    // ✅ Obtener información del admin que aprueba
                                     val adminActual = UserSession.getCurrentUser()
                                     val fechaAprobacion = java.text.SimpleDateFormat(
                                         "yyyy-MM-dd HH:mm:ss",
                                         java.util.Locale.getDefault()
                                     ).format(java.util.Date())
 
-                                    // Actualizar estado a "Aprobado"
                                     val voluntarioAprobado = voluntarioParaAprobar.copy(
                                         estado_aprobacion = "Aprobado",
                                         visto_por_admin = true,
@@ -206,19 +206,13 @@ fun ListaVoluntariosScreen(
                                         onSuccess = {
                                             scope.launch {
                                                 snackbarHostState.showSnackbar("✅ Administrador aprobado")
-
-                                                // ✅ ENVIAR EMAIL DE APROBACIÓN
                                                 launch {
                                                     hn.unah.raindata.data.email.EmailService.enviarEmailConCallback(
                                                         tipo = hn.unah.raindata.data.email.EmailService.TipoEmail.APROBACION_ADMIN,
                                                         destinatario = voluntarioAprobado.email,
                                                         nombreUsuario = voluntarioAprobado.nombre,
-                                                        onSuccess = {
-                                                            android.util.Log.d("ListaVoluntarios", "✅ Email de aprobación enviado")
-                                                        },
-                                                        onError = { error ->
-                                                            android.util.Log.e("ListaVoluntarios", "❌ Error al enviar email: $error")
-                                                        }
+                                                        onSuccess = { android.util.Log.d("ListaVoluntarios", "✅ Email de aprobación enviado") },
+                                                        onError = { error -> android.util.Log.e("ListaVoluntarios", "❌ Error al enviar email: $error") }
                                                     )
                                                 }
                                             }
@@ -233,14 +227,12 @@ fun ListaVoluntariosScreen(
                             },
                             onRechazar = { voluntarioParaRechazar ->
                                 scope.launch {
-                                    // ✅ Obtener información del admin que rechaza
                                     val adminActual = UserSession.getCurrentUser()
                                     val fechaRechazo = java.text.SimpleDateFormat(
                                         "yyyy-MM-dd HH:mm:ss",
                                         java.util.Locale.getDefault()
                                     ).format(java.util.Date())
 
-                                    // Actualizar estado a "Rechazado"
                                     val voluntarioRechazado = voluntarioParaRechazar.copy(
                                         estado_aprobacion = "Rechazado",
                                         visto_por_admin = true,
@@ -274,7 +266,6 @@ fun ListaVoluntariosScreen(
         }
     }
 
-    // Diálogo de sin permisos
     if (showNoPermissionDialog) {
         AlertDialog(
             onDismissRequest = { showNoPermissionDialog = false },
@@ -294,7 +285,7 @@ fun ListaVoluntariosScreen(
 @Composable
 fun VoluntarioCard(
     voluntario: Voluntario,
-    viewModel: VoluntarioViewModel,
+    onVerDetalles: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onAprobar: (Voluntario) -> Unit,
@@ -307,23 +298,21 @@ fun VoluntarioCard(
     var showAprobarDialog by remember { mutableStateOf(false) }
     var showRechazarDialog by remember { mutableStateOf(false) }
 
-    // ✅ Determinar color de la card según estado
-    val cardColor = when {
-        voluntario.estado_aprobacion == "Pendiente" -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-        voluntario.estado_aprobacion == "Rechazado" -> MaterialTheme.colorScheme.surfaceVariant
-        else -> MaterialTheme.colorScheme.surface
-    }
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .wrapContentHeight(),  // ← AGREGAR ESTA LÍNEA
-        colors = CardDefaults.cardColors(containerColor = cardColor),
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         onClick = { }
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
+            // Fila Superior: Info y Acciones Principales
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -370,61 +359,17 @@ fun VoluntarioCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Badge de tipo de usuario
-                        if (voluntario.tipo_usuario.isNotBlank()) {
-                            Surface(
-                                color = when (voluntario.tipo_usuario) {
-                                    "Administrador" -> MaterialTheme.colorScheme.primaryContainer
-                                    "Voluntario" -> MaterialTheme.colorScheme.secondaryContainer
-                                    else -> MaterialTheme.colorScheme.tertiaryContainer
-                                },
-                                shape = MaterialTheme.shapes.small
-                            ) {
-                                Text(
-                                    text = voluntario.tipo_usuario,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    color = when (voluntario.tipo_usuario) {
-                                        "Administrador" -> MaterialTheme.colorScheme.onPrimaryContainer
-                                        "Voluntario" -> MaterialTheme.colorScheme.onSecondaryContainer
-                                        else -> MaterialTheme.colorScheme.onTertiaryContainer
-                                    }
-                                )
-                            }
-                        }
-
-                        // Badge de estado de aprobación (solo para Administradores)
-                        if (voluntario.tipo_usuario == "Administrador") {
-                            Surface(
-                                color = when (voluntario.estado_aprobacion) {
-                                    "Aprobado" -> MaterialTheme.colorScheme.primaryContainer
-                                    "Pendiente" -> MaterialTheme.colorScheme.errorContainer
-                                    "Rechazado" -> MaterialTheme.colorScheme.surfaceVariant
-                                    else -> MaterialTheme.colorScheme.surface
-                                },
-                                shape = MaterialTheme.shapes.small
-                            ) {
-                                Text(
-                                    text = when (voluntario.estado_aprobacion) {
-                                        "Aprobado" -> "✅ Aprobado"
-                                        "Pendiente" -> "⏳ Pendiente"
-                                        "Rechazado" -> "❌ Rechazado"
-                                        else -> ""
-                                    },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
                 }
 
-                // Botones de editar/eliminar
+                // Iconos de acción arriba a la derecha
                 Row {
+                    IconButton(onClick = onVerDetalles) {
+                        Icon(
+                            Icons.Default.Visibility,
+                            contentDescription = "Ver detalles",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     if (canEdit && voluntario.estado_aprobacion != "Pendiente") {
                         IconButton(onClick = onEdit) {
                             Icon(Icons.Default.Edit, contentDescription = "Editar")
@@ -440,6 +385,90 @@ fun VoluntarioCard(
                         }
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Fila de Chips de Estado (debajo de la info)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Badge de tipo de usuario
+                if (voluntario.tipo_usuario.isNotBlank()) {
+                    Surface(
+                        modifier = Modifier.wrapContentWidth(),
+                        color = when (voluntario.tipo_usuario) {
+                            "Administrador" -> MaterialTheme.colorScheme.primaryContainer
+                            "Voluntario" -> MaterialTheme.colorScheme.secondaryContainer
+                            else -> MaterialTheme.colorScheme.tertiaryContainer
+                        },
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Text(
+                            text = voluntario.tipo_usuario,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            color = when (voluntario.tipo_usuario) {
+                                "Administrador" -> MaterialTheme.colorScheme.onPrimaryContainer
+                                "Voluntario" -> MaterialTheme.colorScheme.onSecondaryContainer
+                                else -> MaterialTheme.colorScheme.onTertiaryContainer
+                            }
+                        )
+                    }
+                }
+
+                // Badge de estado de aprobación (solo para Administradores)
+                if (voluntario.tipo_usuario == "Administrador") {
+                    Surface(
+                        modifier = Modifier.wrapContentSize(),
+                        color = when (voluntario.estado_aprobacion) {
+                            "Aprobado" -> MaterialTheme.colorScheme.primaryContainer
+                            "Pendiente" -> MaterialTheme.colorScheme.errorContainer
+                            "Rechazado" -> MaterialTheme.colorScheme.surfaceVariant
+                            else -> MaterialTheme.colorScheme.surface
+                        },
+                        shape = MaterialTheme.shapes.small
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = when (voluntario.estado_aprobacion) {
+                                    "Aprobado" -> Icons.Default.Check
+                                    "Pendiente" -> Icons.Default.History
+                                    "Rechazado" -> Icons.Default.Close
+                                    else -> Icons.Default.Help
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = when (voluntario.estado_aprobacion) {
+                                    "Aprobado" -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    "Pendiente" -> MaterialTheme.colorScheme.onErrorContainer
+                                    "Rechazado" -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                            Text(
+                                text = voluntario.estado_aprobacion,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Visible,
+                                softWrap = false,
+                                color = when (voluntario.estado_aprobacion) {
+                                    "Aprobado" -> MaterialTheme.colorScheme.onPrimaryContainer
+                                    "Pendiente" -> MaterialTheme.colorScheme.onErrorContainer
+                                    "Rechazado" -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    else -> MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+                        }
+                    }
+                }
+            }
             }
 
             // ✅ BOTONES DE APROBAR/RECHAZAR ABAJO
@@ -589,4 +618,4 @@ fun VoluntarioCard(
             }
         )
     }
-}}
+}
