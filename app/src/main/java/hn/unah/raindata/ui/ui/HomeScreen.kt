@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import hn.unah.raindata.data.session.UserSession
+import hn.unah.raindata.ui.ui.components.PermissionFlow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -26,6 +27,13 @@ fun HomeScreen(
     val userRole = UserSession.getUserRole() ?: "Sin rol"
 
     var showLogoutDialog by remember { mutableStateOf(false) }
+
+    // Flujo de permisos. Solo mostrará diálogos si no se han concedido/configurado previamente.
+    PermissionFlow(
+        onFlowCompleted = { 
+            // Opcional: Registrar métricas o recargar algo al terminar
+        }
+    )
 
     Column(
         modifier = Modifier

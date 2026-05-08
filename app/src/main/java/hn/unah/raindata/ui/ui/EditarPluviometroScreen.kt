@@ -132,18 +132,24 @@ fun EditarPluviometroScreen(
     ) { isGranted ->
         permisoUbicacionConcedido = isGranted
         if (isGranted) {
-            val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-            try {
-                fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                    location?.let {
-                        ubicacionSeleccionada = LatLng(it.latitude, it.longitude)
-                        cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                            LatLng(it.latitude, it.longitude), 15f
-                        )
+            val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+            if (!locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
+                try {
+                    context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                } catch (e: Exception) {}
+            } else {
+                mostrarMapa = true
+                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                try {
+                    fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                        location?.let {
+                            ubicacionSeleccionada = LatLng(it.latitude, it.longitude)
+                            cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                                LatLng(it.latitude, it.longitude), 15f
+                            )
+                        }
                     }
-                }
-            } catch (e: SecurityException) {
-                // Manejar error
+                } catch (e: SecurityException) {}
             }
         }
     }
@@ -461,10 +467,20 @@ fun EditarPluviometroScreen(
 
                     Button(
                         onClick = {
-                            if (!permisoUbicacionConcedido) {
-                                permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                            if (!mostrarMapa) {
+                                val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+                                if (!permisoUbicacionConcedido) {
+                                    permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                } else if (!locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
+                                    try {
+                                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                                    } catch (e: Exception) {}
+                                } else {
+                                    mostrarMapa = true
+                                }
+                            } else {
+                                mostrarMapa = false
                             }
-                            mostrarMapa = !mostrarMapa
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) {

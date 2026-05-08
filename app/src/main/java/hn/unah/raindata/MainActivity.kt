@@ -6,8 +6,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.ui.ui.*  // <-- ESTA LÍNEA ES CRÍTICA
@@ -79,10 +84,9 @@ class MainActivity : ComponentActivity() {
 
                 // Fallback: Si hay un ID guardado pero el ViewModel aún no tiene los datos cargados
                 // (ocurre después de un Configuration Change), cargar los datos necesarios
-                LaunchedEffect(datoMeteorologicoSeleccionadoId, datosMeteorologicosState) {
+                LaunchedEffect(datoMeteorologicoSeleccionadoId) {
                     val id = datoMeteorologicoSeleccionadoId
                     if (id != null && datosMeteorologicosState.none { it.id == id }) {
-                        // Los datos no están cargados aún, cargarlos
                         datoMeteorologicoViewModel.cargarTodosDatos()
                     }
                 }
@@ -450,6 +454,8 @@ class MainActivity : ComponentActivity() {
                                                 pantallaActual = Pantalla.EDITAR_PLUVIOMETRO
                                             }
                                         )
+                                    } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
                                     }
                                 }
 
@@ -471,6 +477,8 @@ class MainActivity : ComponentActivity() {
                                                 pluviometroSeleccionadoId = null
                                             }
                                         )
+                                    } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
                                     }
                                 }
 
@@ -522,6 +530,8 @@ class MainActivity : ComponentActivity() {
                                                 pantallaActual = Pantalla.EDITAR_DATO_METEOROLOGICO
                                             }
                                         )
+                                    } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
                                     }
                                 }
 
@@ -538,6 +548,8 @@ class MainActivity : ComponentActivity() {
                                                 pantallaActual = Pantalla.DETALLES_DATO_METEOROLOGICO
                                             }
                                         )
+                                    } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
                                     }
                                 }
 
