@@ -96,43 +96,45 @@ fun RegistroVoluntarioScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ✅ NUEVO: Selector de tipo de documento
-    var tipoDocumento by remember { mutableStateOf("DNI") } // "DNI" o "Pasaporte"
+    // ✅ PERSISTENCIA: Usar estados del ViewModel en lugar de locales
+    val tipoDocumento by viewModel.tipoDocumentoDraft.collectAsState()
+    val nombre by viewModel.nombreDraft.collectAsState()
+    val dni by viewModel.dniDraft.collectAsState()
+    val pasaporte by viewModel.pasaporteDraft.collectAsState()
+    val telefono by viewModel.telefonoDraft.collectAsState()
+    val correo by viewModel.correoDraft.collectAsState()
+    val direccion by viewModel.direccionDraft.collectAsState()
+    val departamento by viewModel.departamentoDraft.collectAsState()
+    val municipio by viewModel.municipioDraft.collectAsState()
+    val aldea by viewModel.aldeaDraft.collectAsState()
+    val caserioBarrioColonia by viewModel.caserioDraft.collectAsState()
+    val tipoUsuario by viewModel.tipoUsuarioDraft.collectAsState()
+    val fechaNacimiento by viewModel.fechaNacimientoDraft.collectAsState()
+    val genero by viewModel.generoDraft.collectAsState()
+    val observaciones by viewModel.observacionesDraft.collectAsState()
 
-    // Estados del formulario
-    var nombre by remember { mutableStateOf("") }
-    var dni by remember { mutableStateOf("") }
-    var pasaporte by remember { mutableStateOf("") } // ✅ NUEVO
-    var telefono by remember { mutableStateOf("") }
-    var correo by remember { mutableStateOf(emailPrecargado) }
-    var direccion by remember { mutableStateOf("") }
-    var departamento by remember { mutableStateOf("") }
     var expandedDepartamento by remember { mutableStateOf(false) }
-    var municipio by remember { mutableStateOf("") }
     var expandedMunicipio by remember { mutableStateOf(false) }
-    var aldea by remember { mutableStateOf("") }
-    var caserioBarrioColonia by remember { mutableStateOf("") }
-    var tipoUsuario by remember { mutableStateOf("") }
     var esPrimerUsuario by remember { mutableStateOf(false) }
     var checkingPrimerUsuario by remember { mutableStateOf(true) }
 
     // ✅ VERIFICAR SI ES EL PRIMER USUARIO AL INICIAR
     LaunchedEffect(Unit) {
+        // Pre-cargar correo si viene de autenticación y el draft está vacío
+        if (emailPrecargado.isNotEmpty() && correo.isEmpty()) {
+            viewModel.setCorreoDraft(emailPrecargado)
+        }
+
         esPrimerUsuario = viewModel.esPrimerUsuario()
 
-        if (esPrimerUsuario) {
-            tipoUsuario = "Administrador" // ← Pre-cargar Administrador
+        if (esPrimerUsuario && tipoUsuario.isEmpty()) {
+            viewModel.setTipoUsuarioDraft("Administrador")
         }
 
         checkingPrimerUsuario = false
     }
 
     var expandedTipoUsuario by remember { mutableStateOf(false) }
-    var observaciones by remember { mutableStateOf("") }
-
-    // ✅ NUEVOS CAMPOS
-    var fechaNacimiento by remember { mutableStateOf("") }
-    var genero by remember { mutableStateOf("") }
     var expandedGenero by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -162,8 +164,8 @@ fun RegistroVoluntarioScreen(
 
     // Si es solo administrador, forzar el valor
     LaunchedEffect(soloAdministrador) {
-        if (soloAdministrador) {
-            tipoUsuario = "Administrador"
+        if (soloAdministrador && tipoUsuario != "Administrador") {
+            viewModel.setTipoUsuarioDraft("Administrador")
         }
     }
 
@@ -210,7 +212,7 @@ fun RegistroVoluntarioScreen(
     LaunchedEffect(departamento) {
         errorDepartamento = viewModel.validarDepartamento(departamento)
         if (municipio.isNotEmpty() && !municipiosDisponibles.contains(municipio)) {
-            municipio = ""
+            viewModel.setMunicipioDraft("")
         }
     }
 
@@ -298,7 +300,8 @@ fun RegistroVoluntarioScreen(
                         value = nombre,
                         onValueChange = {
                             if (it.length <= 40) {
-                                nombre = it.filter { char -> char.isLetter() || char.isWhitespace() || char in "áéíóúÁÉÍÓÚñÑ" }
+                                val filtered = it.filter { char -> char.isLetter() || char.isWhitespace() || char in "áéíóúÁÉÍÓÚñÑ" }
+                                viewModel.setNombreDraft(filtered)
                             }
                         },
                         label = { Text("Nombre completo *") },
@@ -360,9 +363,9 @@ fun RegistroVoluntarioScreen(
                                 FilterChip(
                                     selected = tipoDocumento == "DNI",
                                     onClick = {
-                                        tipoDocumento = "DNI"
+                                        viewModel.setTipoDocumentoDraft("DNI")
                                         // Limpiar el campo contrario
-                                        pasaporte = ""
+                                        viewModel.setPasaporteDraft("")
                                         errorPasaporte = null
                                     },
                                     label = { Text("DNI hondureño") },
@@ -371,9 +374,9 @@ fun RegistroVoluntarioScreen(
                                 FilterChip(
                                     selected = tipoDocumento == "Pasaporte",
                                     onClick = {
-                                        tipoDocumento = "Pasaporte"
+                                        viewModel.setTipoDocumentoDraft("Pasaporte")
                                         // Limpiar el campo contrario
-                                        dni = ""
+                                        viewModel.setDniDraft("")
                                         errorDNI = null
                                     },
                                     label = { Text("Pasaporte") },
@@ -389,7 +392,7 @@ fun RegistroVoluntarioScreen(
                         OutlinedTextField(
                             value = dni,
                             onValueChange = { input ->
-                                dni = input.filter { it.isDigit() }.take(13)
+                                viewModel.setDniDraft(input.filter { it.isDigit() }.take(13))
                             },
                             label = { Text("DNI *") },
                             placeholder = { Text("0708-2005-00276") },
@@ -425,7 +428,7 @@ fun RegistroVoluntarioScreen(
                         OutlinedTextField(
                             value = pasaporte,
                             onValueChange = { input ->
-                                pasaporte = viewModel.formatearPasaporte(input)
+                                viewModel.setPasaporteDraft(viewModel.formatearPasaporte(input))
                             },
                             label = { Text("Pasaporte *") },
                             placeholder = { Text("AB123456") },
@@ -550,7 +553,7 @@ fun RegistroVoluntarioScreen(
                                 DropdownMenuItem(
                                     text = { Text(gen) },
                                     onClick = {
-                                        genero = gen
+                                        viewModel.setGeneroDraft(gen)
                                         expandedGenero = false
                                     }
                                 )
@@ -562,7 +565,7 @@ fun RegistroVoluntarioScreen(
                     OutlinedTextField(
                         value = telefono,
                         onValueChange = { input ->
-                            telefono = input.filter { it.isDigit() }.take(8)
+                            viewModel.setTelefonoDraft(input.filter { it.isDigit() }.take(8))
                         },
                         label = { Text("Teléfono") },
                         placeholder = { Text("2245-5566") },
@@ -598,7 +601,7 @@ fun RegistroVoluntarioScreen(
                     OutlinedTextField(
                         value = correo,
                         onValueChange = {
-                            if (it.length <= 50) correo = it
+                            if (it.length <= 50) viewModel.setCorreoDraft(it)
                         },
                         label = { Text("Correo") },
                         placeholder = { Text("ejemplo@correo.com") },
@@ -694,7 +697,7 @@ fun RegistroVoluntarioScreen(
                                     DropdownMenuItem(
                                         text = { Text(tipo) },
                                         onClick = {
-                                            tipoUsuario = tipo
+                                            viewModel.setTipoUsuarioDraft(tipo)
                                             expandedTipoUsuario = false
                                         }
                                     )
@@ -720,7 +723,7 @@ fun RegistroVoluntarioScreen(
                     OutlinedTextField(
                         value = direccion,
                         onValueChange = {
-                            if (it.length <= 100) direccion = it
+                            if (it.length <= 100) viewModel.setDireccionDraft(it)
                         },
                         label = { Text("Dirección *") },
                         isError = errorDireccion != null && direccion.isNotBlank(),
@@ -802,7 +805,7 @@ fun RegistroVoluntarioScreen(
                                 DropdownMenuItem(
                                     text = { Text(depto) },
                                     onClick = {
-                                        departamento = depto
+                                        viewModel.setDepartamentoDraft(depto)
                                         expandedDepartamento = false
                                     }
                                 )
@@ -863,7 +866,7 @@ fun RegistroVoluntarioScreen(
                                     DropdownMenuItem(
                                         text = { Text(muni) },
                                         onClick = {
-                                            municipio = muni
+                                            viewModel.setMunicipioDraft(muni)
                                             expandedMunicipio = false
                                         }
                                     )
@@ -876,7 +879,7 @@ fun RegistroVoluntarioScreen(
                     OutlinedTextField(
                         value = aldea,
                         onValueChange = {
-                            if (it.length <= 15) aldea = it
+                            if (it.length <= 15) viewModel.setAldeaDraft(it)
                         },
                         label = { Text("Aldea o colonia *") },
                         isError = errorAldea != null && aldea.isNotBlank(),
@@ -918,7 +921,7 @@ fun RegistroVoluntarioScreen(
                     OutlinedTextField(
                         value = caserioBarrioColonia,
                         onValueChange = {
-                            if (it.length <= 15) caserioBarrioColonia = it
+                            if (it.length <= 15) viewModel.setCaserioDraft(it)
                         },
                         label = { Text("Caserío/Barrio/Colonia") },
                         isError = errorCaserio != null && caserioBarrioColonia.isNotBlank(),
@@ -969,7 +972,7 @@ fun RegistroVoluntarioScreen(
 
                     OutlinedTextField(
                         value = observaciones,
-                        onValueChange = { observaciones = it },
+                        onValueChange = { viewModel.setObservacionesDraft(it) },
                         label = { Text("Observaciones adicionales (opcional)") },
                         isError = errorObservaciones != null && observaciones.isNotBlank(),
                         supportingText = {
@@ -1058,6 +1061,7 @@ fun RegistroVoluntarioScreen(
                                     scope.launch {
                                         snackbarHostState.showSnackbar("✅ Voluntario guardado exitosamente")
                                     }
+                                    viewModel.limpiarDraft()
                                     onVoluntarioGuardado(tipoUsuario)
                                 },
                                 onError = { errorMsg ->
@@ -1075,24 +1079,7 @@ fun RegistroVoluntarioScreen(
                 }
 
                 OutlinedButton(
-                    onClick = {
-                        nombre = ""
-                        dni = ""
-                        pasaporte = ""
-                        telefono = ""
-                        correo = ""
-                        direccion = ""
-                        departamento = ""
-                        municipio = ""
-                        aldea = ""
-                        caserioBarrioColonia = ""
-                        fechaNacimiento = ""
-                        genero = ""
-                        if (!soloAdministrador) {
-                            tipoUsuario = ""
-                        }
-                        observaciones = ""
-                    },
+                    onClick = { viewModel.limpiarDraft() },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Limpiar")
@@ -1167,7 +1154,7 @@ fun RegistroVoluntarioScreen(
                             val calendar = Calendar.getInstance()
                             calendar.timeInMillis = millis
                             val formato = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-                            fechaNacimiento = formato.format(calendar.time)
+                            viewModel.setFechaNacimientoDraft(formato.format(calendar.time))
                         }
                         showDatePicker = false
                     }

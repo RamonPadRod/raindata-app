@@ -44,6 +44,51 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
         cargarPluviometros()
     }
 
+    // ===== ESTADO DEL FORMULARIO (PERSISTENCIA AL NAVEGAR) =====
+    private val _direccionDraft = MutableStateFlow("")
+    val direccionDraft = _direccionDraft.asStateFlow()
+    fun setDireccionDraft(value: String) { _direccionDraft.value = value }
+
+    private val _departamentoDraft = MutableStateFlow("")
+    val departamentoDraft = _departamentoDraft.asStateFlow()
+    fun setDepartamentoDraft(value: String) { _departamentoDraft.value = value }
+
+    private val _municipioDraft = MutableStateFlow("")
+    val municipioDraft = _municipioDraft.asStateFlow()
+    fun setMunicipioDraft(value: String) { _municipioDraft.value = value }
+
+    private val _aldeaDraft = MutableStateFlow("")
+    val aldeaDraft = _aldeaDraft.asStateFlow()
+    fun setAldeaDraft(value: String) { _aldeaDraft.value = value }
+
+    private val _caserioDraft = MutableStateFlow("")
+    val caserioDraft = _caserioDraft.asStateFlow()
+    fun setCaserioDraft(value: String) { _caserioDraft.value = value }
+
+    private val _voluntarioDraft = MutableStateFlow<hn.unah.raindata.data.database.entities.Voluntario?>(null)
+    val voluntarioDraft = _voluntarioDraft.asStateFlow()
+    fun setVoluntarioDraft(value: hn.unah.raindata.data.database.entities.Voluntario?) { _voluntarioDraft.value = value }
+
+    private val _observacionesDraft = MutableStateFlow("")
+    val observacionesDraft = _observacionesDraft.asStateFlow()
+    fun setObservacionesDraft(value: String) { _observacionesDraft.value = value }
+
+    private val _ubicacionDraft = MutableStateFlow<com.google.android.gms.maps.model.LatLng?>(null)
+    val ubicacionDraft = _ubicacionDraft.asStateFlow()
+    fun setUbicacionDraft(value: com.google.android.gms.maps.model.LatLng?) { _ubicacionDraft.value = value }
+
+    fun limpiarDraft() {
+        _direccionDraft.value = ""
+        _departamentoDraft.value = ""
+        _municipioDraft.value = ""
+        _aldeaDraft.value = ""
+        _caserioDraft.value = ""
+        _voluntarioDraft.value = null
+        _observacionesDraft.value = ""
+        _ubicacionDraft.value = null
+        _codigoGenerado.value = ""
+    }
+
     // ===== LISTENER EN TIEMPO REAL =====
     fun cargarPluviometros() {
         pluviometrosListener?.remove()

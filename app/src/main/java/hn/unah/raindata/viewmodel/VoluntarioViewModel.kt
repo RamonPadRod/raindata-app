@@ -44,6 +44,85 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         cargarVoluntarios()
     }
 
+    // ===== ESTADO DEL FORMULARIO (PERSISTENCIA AL NAVEGAR) =====
+    private val _nombreDraft = MutableStateFlow("")
+    val nombreDraft = _nombreDraft.asStateFlow()
+    fun setNombreDraft(value: String) { _nombreDraft.value = value }
+
+    private val _dniDraft = MutableStateFlow("")
+    val dniDraft = _dniDraft.asStateFlow()
+    fun setDniDraft(value: String) { _dniDraft.value = value }
+
+    private val _pasaporteDraft = MutableStateFlow("")
+    val pasaporteDraft = _pasaporteDraft.asStateFlow()
+    fun setPasaporteDraft(value: String) { _pasaporteDraft.value = value }
+
+    private val _telefonoDraft = MutableStateFlow("")
+    val telefonoDraft = _telefonoDraft.asStateFlow()
+    fun setTelefonoDraft(value: String) { _telefonoDraft.value = value }
+
+    private val _correoDraft = MutableStateFlow("")
+    val correoDraft = _correoDraft.asStateFlow()
+    fun setCorreoDraft(value: String) { _correoDraft.value = value }
+
+    private val _direccionDraft = MutableStateFlow("")
+    val direccionDraft = _direccionDraft.asStateFlow()
+    fun setDireccionDraft(value: String) { _direccionDraft.value = value }
+
+    private val _departamentoDraft = MutableStateFlow("")
+    val departamentoDraft = _departamentoDraft.asStateFlow()
+    fun setDepartamentoDraft(value: String) { _departamentoDraft.value = value }
+
+    private val _municipioDraft = MutableStateFlow("")
+    val municipioDraft = _municipioDraft.asStateFlow()
+    fun setMunicipioDraft(value: String) { _municipioDraft.value = value }
+
+    private val _aldeaDraft = MutableStateFlow("")
+    val aldeaDraft = _aldeaDraft.asStateFlow()
+    fun setAldeaDraft(value: String) { _aldeaDraft.value = value }
+
+    private val _caserioDraft = MutableStateFlow("")
+    val caserioDraft = _caserioDraft.asStateFlow()
+    fun setCaserioDraft(value: String) { _caserioDraft.value = value }
+
+    private val _tipoUsuarioDraft = MutableStateFlow("")
+    val tipoUsuarioDraft = _tipoUsuarioDraft.asStateFlow()
+    fun setTipoUsuarioDraft(value: String) { _tipoUsuarioDraft.value = value }
+
+    private val _fechaNacimientoDraft = MutableStateFlow("")
+    val fechaNacimientoDraft = _fechaNacimientoDraft.asStateFlow()
+    fun setFechaNacimientoDraft(value: String) { _fechaNacimientoDraft.value = value }
+
+    private val _generoDraft = MutableStateFlow("")
+    val generoDraft = _generoDraft.asStateFlow()
+    fun setGeneroDraft(value: String) { _generoDraft.value = value }
+
+    private val _tipoDocumentoDraft = MutableStateFlow("DNI")
+    val tipoDocumentoDraft = _tipoDocumentoDraft.asStateFlow()
+    fun setTipoDocumentoDraft(value: String) { _tipoDocumentoDraft.value = value }
+
+    private val _observacionesDraft = MutableStateFlow("")
+    val observacionesDraft = _observacionesDraft.asStateFlow()
+    fun setObservacionesDraft(value: String) { _observacionesDraft.value = value }
+
+    fun limpiarDraft() {
+        _nombreDraft.value = ""
+        _dniDraft.value = ""
+        _pasaporteDraft.value = ""
+        _telefonoDraft.value = ""
+        _correoDraft.value = ""
+        _direccionDraft.value = ""
+        _departamentoDraft.value = ""
+        _municipioDraft.value = ""
+        _aldeaDraft.value = ""
+        _caserioDraft.value = ""
+        _tipoUsuarioDraft.value = ""
+        _fechaNacimientoDraft.value = ""
+        _generoDraft.value = ""
+        _tipoDocumentoDraft.value = "DNI"
+        _observacionesDraft.value = ""
+    }
+
     // ===== LISTENER EN TIEMPO REAL =====
     fun cargarVoluntarios() {
         // Cancelar listener anterior si existe

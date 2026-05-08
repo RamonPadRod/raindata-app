@@ -3,13 +3,16 @@ package hn.unah.raindata.ui.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import hn.unah.raindata.data.session.UserSession
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -20,6 +23,8 @@ fun MainLayout(
     onNavigateToVoluntarios: () -> Unit,
     onNavigateToPluviometros: () -> Unit,
     onNavigateToDatosMeteorologicos: () -> Unit,
+    onNavigateToPerfil: () -> Unit,
+    onLogout: () -> Unit,
     content: @Composable () -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -46,6 +51,10 @@ fun MainLayout(
                     onNavigateToDatosMeteorologicos()
                     scope.launch { drawerState.close() }
                 },
+                onLogout = {
+                    scope.launch { drawerState.close() }
+                    onLogout()
+                },
                 onCloseDrawer = {
                     scope.launch { drawerState.close() }
                 }
@@ -60,30 +69,31 @@ fun MainLayout(
                             text = when(currentScreen) {
                                 "HOME" -> "DatosLluvia"
                                 "VOLUNTARIOS" -> "Gestión de voluntarios"
-                                "REGISTRO_VOLUNTARIO" -> "Registro de Voluntario"
+                                "REGISTRO_VOLUNTARIO" -> "Registro de voluntario"
                                 "PLUVIOMETROS" -> "Gestión de pluviómetros"
-                                "REGISTRO_PLUVIOMETRO" -> "Registro de Pluviómetro"
+                                "REGISTRO_PLUVIOMETRO" -> "Registro de pluviómetro"
                                 "DATOS_METEOROLOGICOS" -> "Datos meteorológicos"
                                 "REGISTRO_DATO_METEOROLOGICO" -> "Registro de dato meteorológico"
-                                "DATOS_PLUVIOMETRICOS" -> "Datos pluviométricos"
-                                "DATOS_CLIMATICOS" -> "Datos climáticos"
+                                "PERFIL" -> "Perfil de usuario"
                                 else -> "DatosLluvia"
                             }
                         )
                     },
                     navigationIcon = {
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    if (drawerState.isClosed) {
-                                        drawerState.open()
-                                    } else {
-                                        drawerState.close()
+                        if (UserSession.isLoggedIn()) {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        if (drawerState.isClosed) {
+                                            drawerState.open()
+                                        } else {
+                                            drawerState.close()
+                                        }
                                     }
                                 }
+                            ) {
+                                Icon(Icons.Default.Menu, contentDescription = "Menú")
                             }
-                        ) {
-                            Icon(Icons.Default.Menu, contentDescription = "Menú")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -92,6 +102,62 @@ fun MainLayout(
                         navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 )
+            },
+            bottomBar = {
+                if (UserSession.isLoggedIn()) {
+                    NavigationBar {
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
+                            label = { Text("Inicio", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            selected = currentScreen == "HOME",
+                            alwaysShowLabel = false,
+                            onClick = onNavigateToHome
+                        )
+                        
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.WaterDrop, contentDescription = "Pluviómetros") },
+                            label = { Text("Pluvió.", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            selected = currentScreen == "PLUVIOMETROS" || currentScreen == "REGISTRO_PLUVIOMETRO",
+                            alwaysShowLabel = false,
+                            onClick = onNavigateToPluviometros
+                        )
+                        
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.BarChart, contentDescription = "Datos meteorológicos") },
+                            label = { Text("Clima", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            selected = currentScreen == "DATOS_METEOROLOGICOS" || currentScreen == "REGISTRO_DATO_METEOROLOGICO",
+                            alwaysShowLabel = false,
+                            onClick = onNavigateToDatosMeteorologicos
+                        )
+                        
+                        if (UserSession.canViewVoluntarios()) {
+                            NavigationBarItem(
+                                icon = { Icon(Icons.Default.People, contentDescription = "Voluntarios") },
+                                label = { Text("Volunt.", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                selected = currentScreen == "VOLUNTARIOS" || currentScreen == "REGISTRO_VOLUNTARIO",
+                                alwaysShowLabel = false,
+                                onClick = onNavigateToVoluntarios
+                            )
+                        }
+                        
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.Assessment, contentDescription = "Reportes") },
+                            label = { Text("Reportes", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            selected = false,
+                            enabled = false,
+                            alwaysShowLabel = false,
+                            onClick = { }
+                        )
+                        
+                        NavigationBarItem(
+                            icon = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
+                            label = { Text("Perfil", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            selected = currentScreen == "PERFIL",
+                            alwaysShowLabel = false,
+                            onClick = onNavigateToPerfil
+                        )
+                    }
+                }
             }
         ) { paddingValues ->
             Box(
@@ -112,6 +178,7 @@ fun DrawerContent(
     onNavigateToVoluntarios: () -> Unit,
     onNavigateToPluviometros: () -> Unit,
     onNavigateToDatosMeteorologicos: () -> Unit,
+    onLogout: () -> Unit,
     onCloseDrawer: () -> Unit
 ) {
     ModalDrawerSheet(
@@ -154,7 +221,7 @@ fun DrawerContent(
 
             HorizontalDivider()
 
-            // Items del menú
+            // Items del menú (Filtro por roles incluido)
             DrawerMenuItem(
                 icon = Icons.Default.Home,
                 title = "Inicio",
@@ -162,13 +229,15 @@ fun DrawerContent(
                 onClick = onNavigateToHome
             )
 
-            DrawerMenuItem(
-                icon = Icons.Default.Person,
-                title = "Gestión de voluntarios",
-                isSelected = currentScreen == "VOLUNTARIOS" || currentScreen == "REGISTRO_VOLUNTARIO",
-                isEnabled = true,
-                onClick = onNavigateToVoluntarios
-            )
+            if (UserSession.canViewVoluntarios()) {
+                DrawerMenuItem(
+                    icon = Icons.Default.People,
+                    title = "Gestión de voluntarios",
+                    isSelected = currentScreen == "VOLUNTARIOS" || currentScreen == "REGISTRO_VOLUNTARIO",
+                    isEnabled = true,
+                    onClick = onNavigateToVoluntarios
+                )
+            }
 
             DrawerMenuItem(
                 icon = Icons.Default.LocationOn,
@@ -187,19 +256,11 @@ fun DrawerContent(
             )
 
             DrawerMenuItem(
-                icon = Icons.Default.WaterDrop,
-                title = "Datos pluviométricos",
-                isSelected = currentScreen == "DATOS_PLUVIOMETRICOS",
-                isEnabled = false,
-                onClick = { /* Sin función por ahora */ }
-            )
-
-            DrawerMenuItem(
-                icon = Icons.Default.Assessment,
-                title = "Reportes y estadísticas",
+                icon = Icons.AutoMirrored.Filled.ExitToApp,
+                title = "Cerrar sesión",
                 isSelected = false,
-                isEnabled = false,
-                onClick = { /* Sin función por ahora */ }
+                isEnabled = true,
+                onClick = onLogout
             )
 
             Spacer(modifier = Modifier.weight(1f))

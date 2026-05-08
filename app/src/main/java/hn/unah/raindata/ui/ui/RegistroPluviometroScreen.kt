@@ -97,16 +97,19 @@ fun RegistroPluviometroScreen(
 
 
     // Estados del formulario
-    var direccion by remember { mutableStateOf("") }
-    var departamento by remember { mutableStateOf("") }
-    var municipio by remember { mutableStateOf("") }
-    var aldea by remember { mutableStateOf("") }
-    var caserioBarrioColonia by remember { mutableStateOf("") }
-    var voluntarioSeleccionado by remember { mutableStateOf<Voluntario?>(null) }
+    // ✅ PERSISTENCIA: Usar estados del ViewModel
+    val direccion by pluviometroViewModel.direccionDraft.collectAsState()
+    val departamento by pluviometroViewModel.departamentoDraft.collectAsState()
+    val municipio by pluviometroViewModel.municipioDraft.collectAsState()
+    val aldea by pluviometroViewModel.aldeaDraft.collectAsState()
+    val caserioBarrioColonia by pluviometroViewModel.caserioDraft.collectAsState()
+    val voluntarioSeleccionado by pluviometroViewModel.voluntarioDraft.collectAsState()
+    val observaciones by pluviometroViewModel.observacionesDraft.collectAsState()
+    val ubicacionSeleccionada by pluviometroViewModel.ubicacionDraft.collectAsState()
+
     var expandedVoluntario by remember { mutableStateOf(false) }
     var expandedDepartamento by remember { mutableStateOf(false) }
     var expandedMunicipio by remember { mutableStateOf(false) }
-    var observaciones by remember { mutableStateOf("") }
 
     // Estados de error
     var errorDireccion by remember { mutableStateOf<String?>(null) }
@@ -118,7 +121,6 @@ fun RegistroPluviometroScreen(
     var errorMunicipio by remember { mutableStateOf<String?>(null) }
 
     // Estados del mapa
-    var ubicacionSeleccionada by remember { mutableStateOf<LatLng?>(null) }
     var mostrarMapa by remember { mutableStateOf(false) }
     var permisoUbicacionConcedido by remember { mutableStateOf(false) }
 
@@ -167,7 +169,7 @@ fun RegistroPluviometroScreen(
                 try {
                     fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                         location?.let {
-                            ubicacionSeleccionada = LatLng(it.latitude, it.longitude)
+                            pluviometroViewModel.setUbicacionDraft(LatLng(it.latitude, it.longitude))
                             cameraPositionState.position = CameraPosition.fromLatLngZoom(
                                 LatLng(it.latitude, it.longitude), 15f
                             )
@@ -225,7 +227,7 @@ fun RegistroPluviometroScreen(
             "Debe seleccionar un departamento"
         } else null
         if (municipio.isNotEmpty() && !municipiosDisponibles.contains(municipio)) {
-            municipio = ""
+            pluviometroViewModel.setMunicipioDraft("")
         }
     }
     LaunchedEffect(municipio) {
@@ -376,7 +378,7 @@ fun RegistroPluviometroScreen(
                                             }
                                         },
                                         onClick = {
-                                            voluntarioSeleccionado = voluntario
+                                            pluviometroViewModel.setVoluntarioDraft(voluntario)
                                             expandedVoluntario = false
                                         }
                                     )
@@ -435,7 +437,7 @@ fun RegistroPluviometroScreen(
                                 DropdownMenuItem(
                                     text = { Text(depto) },
                                     onClick = {
-                                        departamento = depto
+                                        pluviometroViewModel.setDepartamentoDraft(depto)
                                         expandedDepartamento = false
                                     }
                                 )
@@ -484,7 +486,7 @@ fun RegistroPluviometroScreen(
                                     DropdownMenuItem(
                                         text = { Text(muni) },
                                         onClick = {
-                                            municipio = muni
+                                            pluviometroViewModel.setMunicipioDraft(muni)
                                             expandedMunicipio = false
                                         }
                                     )
@@ -495,7 +497,7 @@ fun RegistroPluviometroScreen(
 
                     OutlinedTextField(
                         value = aldea,
-                        onValueChange = { if (it.length <= 50) aldea = it },
+                        onValueChange = { if (it.length <= 50) pluviometroViewModel.setAldeaDraft(it) },
                         label = { Text("Aldea * (máx. 50 caracteres)") },
                         isError = errorAldea != null,
                         supportingText = {
@@ -522,7 +524,7 @@ fun RegistroPluviometroScreen(
 
                     OutlinedTextField(
                         value = caserioBarrioColonia,
-                        onValueChange = { if (it.length <= 50) caserioBarrioColonia = it },
+                        onValueChange = { if (it.length <= 50) pluviometroViewModel.setCaserioDraft(it) },
                         label = { Text("Caserío/Barrio/Colonia (opcional)") },
                         isError = errorBarrio != null,
                         supportingText = {
@@ -549,7 +551,7 @@ fun RegistroPluviometroScreen(
 
                     OutlinedTextField(
                         value = direccion,
-                        onValueChange = { direccion = it },
+                        onValueChange = { pluviometroViewModel.setDireccionDraft(it) },
                         label = { Text("Dirección *") },
                         isError = errorDireccion != null,
                         supportingText = {
@@ -607,7 +609,7 @@ fun RegistroPluviometroScreen(
                                     myLocationButtonEnabled = permisoUbicacionConcedido
                                 ),
                                 onMapClick = { latLng ->
-                                    ubicacionSeleccionada = latLng
+                                    pluviometroViewModel.setUbicacionDraft(latLng)
                                 }
                             ) {
                                 ubicacionSeleccionada?.let { ubicacion ->
@@ -641,7 +643,7 @@ fun RegistroPluviometroScreen(
             // Observaciones
             OutlinedTextField(
                 value = observaciones,
-                onValueChange = { observaciones = it },
+                onValueChange = { pluviometroViewModel.setObservacionesDraft(it) },
                 label = { Text("Observaciones (opcional)") },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3
@@ -674,6 +676,7 @@ fun RegistroPluviometroScreen(
                                 onSuccess = {
                                     scope.launch {
                                         snackbarHostState.showSnackbar("✅ Pluviómetro guardado exitosamente")
+                                        pluviometroViewModel.limpiarDraft()
                                         onPluviometroGuardado()
                                     }
                                 },
@@ -699,7 +702,10 @@ fun RegistroPluviometroScreen(
                 }
 
                 OutlinedButton(
-                    onClick = onPluviometroGuardado,
+                    onClick = {
+                        pluviometroViewModel.limpiarDraft()
+                        onPluviometroGuardado()
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Cancelar")

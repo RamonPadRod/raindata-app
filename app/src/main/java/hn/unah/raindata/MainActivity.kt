@@ -41,7 +41,8 @@ enum class Pantalla {
     LISTA_DATOS_METEOROLOGICOS,
     REGISTRO_DATO_METEOROLOGICO,
     DETALLES_DATO_METEOROLOGICO,
-    EDITAR_DATO_METEOROLOGICO
+    EDITAR_DATO_METEOROLOGICO,
+    PERFIL
 }
 
 class MainActivity : ComponentActivity() {
@@ -120,7 +121,8 @@ class MainActivity : ComponentActivity() {
                         Pantalla.HOME -> manejarSalida()
                         Pantalla.LISTA_VOLUNTARIOS,
                         Pantalla.LISTA_PLUVIOMETROS,
-                        Pantalla.LISTA_DATOS_METEOROLOGICOS -> pantallaActual = Pantalla.HOME
+                        Pantalla.LISTA_DATOS_METEOROLOGICOS,
+                        Pantalla.PERFIL -> pantallaActual = Pantalla.HOME
                         Pantalla.REGISTRO_VOLUNTARIO -> {
                             if (UserSession.isLoggedIn()) {
                                 pantallaActual = Pantalla.LISTA_VOLUNTARIOS
@@ -292,6 +294,7 @@ class MainActivity : ComponentActivity() {
                                 Pantalla.REGISTRO_DATO_METEOROLOGICO -> "REGISTRO_DATO_METEOROLOGICO"
                                 Pantalla.DETALLES_DATO_METEOROLOGICO -> "DATOS_METEOROLOGICOS"
                                 Pantalla.EDITAR_DATO_METEOROLOGICO -> "DATOS_METEOROLOGICOS"
+                                Pantalla.PERFIL -> "PERFIL"
                                 else -> "HOME"
                             },
                             onNavigateToHome = { pantallaActual = Pantalla.HOME },
@@ -309,6 +312,12 @@ class MainActivity : ComponentActivity() {
                                 if (UserSession.canViewDatosMeteorologicos()) {
                                     pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                                 }
+                            },
+                            onNavigateToPerfil = { pantallaActual = Pantalla.PERFIL },
+                            onLogout = {
+                                authViewModel.cerrarSesion()
+                                UserSession.logout()
+                                pantallaActual = Pantalla.LOGIN
                             }
                         ) {
                             when (pantallaActual) {
@@ -551,6 +560,16 @@ class MainActivity : ComponentActivity() {
                                     } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                         CircularProgressIndicator()
                                     }
+                                }
+
+                                Pantalla.PERFIL -> {
+                                    PerfilScreen(
+                                        onLogout = {
+                                            authViewModel.cerrarSesion()
+                                            UserSession.logout()
+                                            pantallaActual = Pantalla.LOGIN
+                                        }
+                                    )
                                 }
 
                                 else -> {}
