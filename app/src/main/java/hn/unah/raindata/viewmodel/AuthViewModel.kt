@@ -1,16 +1,36 @@
 package hn.unah.raindata.viewmodel
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-class AuthViewModel : ViewModel() {
+class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val auth = FirebaseAuth.getInstance()
+    private val context = application.applicationContext
+
+    // ===== ENCRYPTED PREFERENCES PARA RECUÉRDAME =====
+    private val masterKey = MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build()
+
+    private val sharedPreferences = EncryptedSharedPreferences.create(
+        context,
+        "auth_prefs",
+        masterKey,
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+
+    private val db = hn.unah.raindata.data.database.AppDatabase.getDatabase(application)
+    private val voluntarioRepository = hn.unah.raindata.data.repository.VoluntarioRepository(db.voluntarioDao())
 
     // Estados para UI
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -93,6 +113,7 @@ class AuthViewModel : ViewModel() {
     fun iniciarSesion(
         email: String,
         password: String,
+        recordame: Boolean,
         onSuccess: (String) -> Unit, // Devuelve el UID de Firebase
         onError: (String) -> Unit
     ) {
@@ -107,13 +128,55 @@ class AuthViewModel : ViewModel() {
                     return@launch
                 }
 
-                // Iniciar sesión en Firebase
-                val result = auth.signInWithEmailAndPassword(email, password).await()
-                val uid = result.user?.uid ?: ""
+                // Intentar Iniciar sesión en Firebase
+                try {
+                    val result = auth.signInWithEmailAndPassword(email, password).await()
+                    val uid = result.user?.uid ?: ""
 
-                _authState.value = AuthState.Success("Sesión iniciada correctamente")
-                _isLoading.value = false
-                onSuccess(uid)
+                    // GUARDAR CREDENCIALES SI MARCÓ RECUÉRDAME
+                    if (recordame) {
+                        guardarCredenciales(email, password)
+                    } else {
+                        borrarCredenciales()
+                    }
+
+                    _authState.value = AuthState.Success("Sesión iniciada correctamente")
+                    _isLoading.value = false
+                    onSuccess(uid)
+
+                } catch (e: Exception) {
+                    // SI FALLA POR RED, INTENTAR LOGIN OFFLINE
+                    val isNetworkError = e.message?.contains("network", ignoreCase = true) == true || 
+                                       e is com.google.firebase.FirebaseNetworkException ||
+                                       e is com.google.firebase.firestore.FirebaseFirestoreException
+
+                    if (isNetworkError) {
+                        val (savedEmail, savedPass, isRemembered) = obtenerCredencialesGuardadas()
+                        
+                        if (isRemembered && email == savedEmail && password == savedPass) {
+                            // Credenciales coinciden localmente, buscar perfil en Room
+                            val voluntario = voluntarioRepository.obtenerPorEmail(email)
+                            if (voluntario != null) {
+                                _authState.value = AuthState.Success("Sesión iniciada (Modo Offline)")
+                                _isLoading.value = false
+                                onSuccess(voluntario.firebase_uid)
+                                return@launch
+                            }
+                        }
+                        
+                        val offlineError = if (isRemembered) {
+                            "Sin conexión. El perfil no está disponible offline aún."
+                        } else {
+                            "Sin conexión. Inicia sesión con internet al menos una vez para usar el modo offline."
+                        }
+                        _isLoading.value = false
+                        _authState.value = AuthState.Error(offlineError)
+                        onError(offlineError)
+                    } else {
+                        // Es un error real de credenciales o Firebase
+                        throw e
+                    }
+                }
 
             } catch (e: FirebaseAuthException) {
                 _isLoading.value = false
@@ -130,15 +193,37 @@ class AuthViewModel : ViewModel() {
                 onError(errorMessage)
             } catch (e: Exception) {
                 _isLoading.value = false
-                val errorMessage = if (e.message?.contains("network", ignoreCase = true) == true) {
-                    "Sin conexión a internet. Verifica tu conexión"
-                } else {
-                    "Correo o contraseña incorrectos"
-                }
+                val errorMessage = "Error: ${e.message ?: "Verifique sus credenciales"}"
                 _authState.value = AuthState.Error(errorMessage)
                 onError(errorMessage)
             }
         }
+    }
+
+    // ===== MÉTODOS RECUÉRDAME =====
+    private fun guardarCredenciales(email: String, pass: String) {
+        sharedPreferences.edit().apply {
+            putString("remember_email", email)
+            putString("remember_pass", pass)
+            putBoolean("remember_me", true)
+            apply()
+        }
+    }
+
+    fun borrarCredenciales() {
+        sharedPreferences.edit().apply {
+            remove("remember_email")
+            remove("remember_pass")
+            putBoolean("remember_me", false)
+            apply()
+        }
+    }
+
+    fun obtenerCredencialesGuardadas(): Triple<String, String, Boolean> {
+        val email = sharedPreferences.getString("remember_email", "") ?: ""
+        val pass = sharedPreferences.getString("remember_pass", "") ?: ""
+        val rememberMe = sharedPreferences.getBoolean("remember_me", false)
+        return Triple(email, pass, rememberMe)
     }
 
     // RECUPERAR CONTRASEÑA
@@ -188,7 +273,6 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    // CERRAR SESIÓN
     // CERRAR SESIÓN
     fun cerrarSesion() {
         auth.signOut()

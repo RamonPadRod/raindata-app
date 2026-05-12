@@ -1,44 +1,85 @@
 package hn.unah.raindata.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
+import hn.unah.raindata.data.database.AppDatabase
 import hn.unah.raindata.data.database.entities.DatoMeteorologico
+import hn.unah.raindata.data.repository.DatoMeteorologicoRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 
-class DatoMeteorologicoViewModel : ViewModel() {
+/**
+ * ✅ VIEWMODEL DE DATOS METEOROLÓGICOS - MODO OFFLINE REPOSITORY
+ */
+class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val firestore = FirebaseFirestore.getInstance()
-    private val datosCollection = firestore.collection("datos_meteorologicos")
+    private val db = AppDatabase.getDatabase(application)
+    private val repository = DatoMeteorologicoRepository(db.datoMeteorologicoDao())
 
     private val _datoMeteorologico = MutableStateFlow<DatoMeteorologico?>(null)
-    val datoMeteorologico: StateFlow<DatoMeteorologico?> = _datoMeteorologico
+    val datoMeteorologico: StateFlow<DatoMeteorologico?> = _datoMeteorologico.asStateFlow()
 
     private val _datosMeteorologicos = MutableStateFlow<List<DatoMeteorologico>>(emptyList())
-    val datosMeteorologicos: StateFlow<List<DatoMeteorologico>> = _datosMeteorologicos
+    val datosMeteorologicos: StateFlow<List<DatoMeteorologico>> = _datosMeteorologicos.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    private var datosListener: com.google.firebase.firestore.ListenerRegistration? = null
-
-    // ===== ESTADO DE NAVEGACIÓN (sub-pantalla activa de esta sección) =====
-    // Valores posibles: "LISTA" | "REGISTRO" | "DETALLES" | "EDITAR"
+    // ===== ESTADO DE NAVEGACIÓN =====
     private val _subPantalla = MutableStateFlow("LISTA")
-    val subPantalla: StateFlow<String> = _subPantalla
+    val subPantalla: StateFlow<String> = _subPantalla.asStateFlow()
 
     fun setSubPantalla(valor: String) { _subPantalla.value = valor }
     fun resetSubPantalla() { _subPantalla.value = "LISTA" }
 
+    init {
+        cargarTodosDatos()
+    }
+
+    fun cargarTodosDatos() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            // Sync de fondo
+            launch { repository.sincronizarDesdeNube() }
+
+            repository.obtenerTodos().collect { lista ->
+                _datosMeteorologicos.value = lista
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun cargarDatosPorVoluntario(uid: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            // Sync de fondo
+            launch { repository.sincronizarDesdeNube() }
+
+            repository.obtenerTodos().collect { lista ->
+                _datosMeteorologicos.value = lista.filter { it.voluntario_uid == uid }
+                _isLoading.value = false
+            }
+        }
+    }
+
+    // ALIAS para compatibilidad con pantallas existentes
+    fun cargarDatoPorId(id: String) {
+        obtenerPorId(id)
+    }
+
+    fun obtenerPorId(id: String) {
+        viewModelScope.launch {
+            _datoMeteorologico.value = repository.obtenerPorId(id)
+        }
+    }
 
     fun guardarDato(
         dato: DatoMeteorologico,
@@ -48,16 +89,7 @@ class DatoMeteorologicoViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-
-                val docRef = if (dato.id.isEmpty()) {
-                    datosCollection.document()
-                } else {
-                    datosCollection.document(dato.id)
-                }
-
-                val datoConId = dato.copy(id = docRef.id)
-                docRef.set(datoConId).await()
-
+                repository.guardarDato(dato)
                 _isLoading.value = false
                 onSuccess()
             } catch (e: Exception) {
@@ -75,11 +107,7 @@ class DatoMeteorologicoViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-
-                datosCollection.document(dato.id)
-                    .set(dato)
-                    .await()
-
+                repository.guardarDato(dato) // Repository maneja insert/update
                 _isLoading.value = false
                 onSuccess()
             } catch (e: Exception) {
@@ -97,11 +125,7 @@ class DatoMeteorologicoViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-
-                datosCollection.document(datoId)
-                    .update("activo", false)  // ✅ SOFT DELETE - solo marca como inactivo
-                    .await()
-
+                repository.eliminarDato(datoId)
                 _isLoading.value = false
                 onSuccess()
             } catch (e: Exception) {
@@ -111,215 +135,82 @@ class DatoMeteorologicoViewModel : ViewModel() {
         }
     }
 
-    fun cargarDatoPorId(datoId: String) {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-
-                val document = datosCollection.document(datoId).get().await()
-                val dato = document.toObject(DatoMeteorologico::class.java)
-
-                _datoMeteorologico.value = dato
-                _isLoading.value = false
-            } catch (e: Exception) {
-                _errorMessage.value = "Error al cargar dato: ${e.message}"
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun cargarTodosDatos() {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-
-                datosCollection
-                    .whereEqualTo("activo", true)  // ✅ IMPORTANTE
-                    .orderBy("fecha_lectura", Query.Direction.DESCENDING)
-                    .orderBy("hora_lectura", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
-                    .let { querySnapshot ->
-                        val lista = querySnapshot.documents.mapNotNull { doc ->
-                            doc.toObject(DatoMeteorologico::class.java)?.copy(id = doc.id)
-                        }
-                        _datosMeteorologicos.value = lista
-                    }
-
-                _isLoading.value = false
-            } catch (e: Exception) {
-                _errorMessage.value = e.message
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun cargarDatosPorVoluntario(voluntarioUid: String) {
-        viewModelScope.launch {
-            try {
-                _isLoading.value = true
-
-                datosCollection
-                    .whereEqualTo("pluviometro_responsable_uid", voluntarioUid)
-                    .whereEqualTo("activo", true)  // ✅ IMPORTANTE
-                    .orderBy("fecha_lectura", Query.Direction.DESCENDING)
-                    .orderBy("hora_lectura", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
-                    .let { querySnapshot ->
-                        val lista = querySnapshot.documents.mapNotNull { doc ->
-                            doc.toObject(DatoMeteorologico::class.java)?.copy(id = doc.id)
-                        }
-                        _datosMeteorologicos.value = lista
-                    }
-
-                _isLoading.value = false
-            } catch (e: Exception) {
-                _errorMessage.value = e.message
-                _isLoading.value = false
-            }
-        }
-    }
-
-    fun cargarDatosPorPluviometro(pluviometroId: String) {
-        datosListener?.remove()
-
-        _isLoading.value = true
-
-        datosListener = datosCollection
-            .whereEqualTo("pluviometro_id", pluviometroId)
-            .whereEqualTo("activo", true)
-            .orderBy("fecha_lectura", Query.Direction.DESCENDING)
-            .orderBy("hora_lectura", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, error ->
-                _isLoading.value = false
-
-                if (error != null) {
-                    _errorMessage.value = "Error al cargar datos: ${error.message}"
-                    return@addSnapshotListener
-                }
-
-                val lista = snapshot?.documents?.mapNotNull { doc ->
-                    try {
-                        doc.toObject(DatoMeteorologico::class.java)
-                    } catch (e: Exception) {
-                        null
-                    }
-                } ?: emptyList()
-
-                _datosMeteorologicos.value = lista
-            }
-    }
-
+    // ===== MÉTODOS DE VALIDACIÓN (RESTORED) =====
     fun validarFechaLectura(fecha: String): String? {
-        if (fecha.isBlank()) return "La fecha de lectura es obligatoria"
-
+        if (fecha.isBlank()) return "La fecha es obligatoria"
         return try {
-            val formato = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-            formato.isLenient = false
-            val fechaIngresada = formato.parse(fecha) ?: return "Formato de fecha inválido (yyyy-MM-dd)"
-
-            val calendario = Calendar.getInstance()
-            val hoy = calendario.time
-
-            calendario.add(Calendar.DAY_OF_YEAR, -7)
-            val hace7Dias = calendario.time
-
-            calendario.time = hoy
-            calendario.add(Calendar.DAY_OF_YEAR, 7)
-            val en7Dias = calendario.time
-
-            when {
-                fechaIngresada.before(hace7Dias) -> "La fecha de lectura no puede ser anterior a 7 días"
-                fechaIngresada.after(en7Dias) -> "La fecha de lectura no puede ser posterior a 7 días"
-                else -> null
-            }
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            sdf.isLenient = false
+            val date = sdf.parse(fecha)
+            val cal = Calendar.getInstance()
+            val hoy = cal.time
+            
+            cal.add(Calendar.DAY_OF_YEAR, -7)
+            val haceSieteDias = cal.time
+            
+            if (date.after(hoy)) return "La fecha no puede ser futura"
+            if (date.before(haceSieteDias)) return "No puede registrar datos de hace más de 7 días"
+            
+            null
         } catch (e: Exception) {
-            "Formato de fecha inválido (yyyy-MM-dd)"
+            "Formato inválido (yyyy-MM-dd)"
         }
     }
 
     fun validarHora(hora: String): String? {
         if (hora.isBlank()) return "La hora es obligatoria"
-
         return try {
-            val formato = SimpleDateFormat("HH:mm", Locale.getDefault())
-            formato.isLenient = false
-            formato.parse(hora)
+            val parts = hora.split(":")
+            if (parts.size != 2) return "Formato inválido (HH:mm)"
+            val h = parts[0].toInt()
+            val m = parts[1].toInt()
+            if (h !in 0..23 || m !in 0..59) return "Hora inválida"
             null
         } catch (e: Exception) {
-            "Formato de hora inválido (HH:mm)"
+            "Formato inválido"
         }
     }
 
     fun validarPrecipitacion(valor: String): String? {
         if (valor.isBlank()) return "La precipitación es obligatoria"
-
-        val precipitacion = valor.toDoubleOrNull()
-            ?: return "Debe ingresar un número válido"
-
-        return when {
-            precipitacion < 0 -> "La precipitación no puede ser negativa"
-            precipitacion > 500 -> "Precipitación fuera de rango (máx. 500mm)"
-            else -> null
-        }
-    }
-
-    fun validarTemperaturaMaxima(valor: String): String? {
-        if (valor.isBlank()) return null
-
-        val temp = valor.toDoubleOrNull()
-            ?: return "Debe ingresar un número válido"
-
-        return when {
-            temp < 10 -> "Temp. máxima muy baja (mín. 10°C)"
-            temp > 50 -> "Temp. máxima fuera de rango (máx. 50°C)"
-            else -> null
-        }
-    }
-
-    fun validarTemperaturaMinima(valor: String): String? {
-        if (valor.isBlank()) return null
-
-        val temp = valor.toDoubleOrNull()
-            ?: return "Debe ingresar un número válido"
-
-        return when {
-            temp < -5 -> "Temp. mínima muy baja (mín. -5°C)"
-            temp > 40 -> "Temp. mínima muy alta (máx. 40°C)"
-            else -> null
-        }
-    }
-
-    fun validarCoherenciaTemperaturas(tempMin: String, tempMax: String): String? {
-        if (tempMin.isBlank() || tempMax.isBlank()) return null
-
-        val min = tempMin.toDoubleOrNull()
-        val max = tempMax.toDoubleOrNull()
-
-        if (min != null && max != null && min >= max) {
-            return "Temp. mínima debe ser menor que temp. máxima"
-        }
-
+        val p = valor.toDoubleOrNull() ?: return "Debe ser un número"
+        if (p < 0 || p > 500) return "Rango válido: 0 - 500 mm"
         return null
     }
 
-    fun validarObservaciones(valor: String): String? {
-        return if (valor.length > 500) {
-            "Las observaciones no pueden exceder 500 caracteres"
-        } else null
+    fun validarTemperaturaMaxima(valor: String): String? {
+        if (valor.isBlank()) return null // Opcional
+        val t = valor.toDoubleOrNull() ?: return "Debe ser un número"
+        if (t < 10 || t > 50) return "Rango válido: 10°C - 50°C"
+        return null
+    }
+
+    fun validarTemperaturaMinima(valor: String): String? {
+        if (valor.isBlank()) return null // Opcional
+        val t = valor.toDoubleOrNull() ?: return "Debe ser un número"
+        if (t < -5 || t > 40) return "Rango válido: -5°C - 40°C"
+        return null
+    }
+
+    fun validarCoherenciaTemperaturas(min: String, max: String): String? {
+        val tMin = min.toDoubleOrNull() ?: return null
+        val tMax = max.toDoubleOrNull() ?: return null
+        if (tMin >= tMax) return "La temperatura mínima debe ser menor a la máxima"
+        return null
     }
 
     fun validarCondicionesDia(condiciones: List<String>): String? {
-        return when {
-            condiciones.isEmpty() -> "Debe seleccionar al menos una condición"
-            condiciones.size > 3 -> "Puede seleccionar máximo 3 condiciones"
-            else -> null
-        }
+        if (condiciones.isEmpty()) return "Seleccione al menos una condición"
+        if (condiciones.size > 3) return "Máximo 3 condiciones"
+        return null
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        datosListener?.remove()
+    fun validarObservaciones(obs: String): String? {
+        if (obs.length > 500) return "Máximo 500 caracteres"
+        return null
+    }
+
+    fun limpiarDatoSeleccionado() {
+        _datoMeteorologico.value = null
     }
 }

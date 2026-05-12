@@ -5,81 +5,74 @@ import com.google.firebase.firestore.PropertyName
 import com.google.firebase.firestore.ServerTimestamp
 import java.util.Date
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.Ignore
+
+@Entity(tableName = "datos_meteorologicos")
 data class DatoMeteorologico(
+    @PrimaryKey
     @DocumentId
-    val id: String = "",
+    var id: String = "",
 
     @PropertyName("voluntario_uid")
-    val voluntario_uid: String = "",
+    var voluntario_uid: String = "",
 
     @PropertyName("voluntario_nombre")
-    val voluntario_nombre: String = "",
+    var voluntario_nombre: String = "",
 
     @PropertyName("pluviometro_id")
-    val pluviometro_id: String = "",
+    var pluviometro_id: String = "",
 
     @PropertyName("pluviometro_registro")
-    val pluviometro_registro: String = "",
+    var pluviometro_registro: String = "",
 
     @PropertyName("pluviometro_responsable_uid")
-    val pluviometro_responsable_uid: String = "",
+    var pluviometro_responsable_uid: String = "",
 
     @PropertyName("fecha_lectura")
-    val fecha_lectura: String = "",
+    var fecha_lectura: String = "",
 
     @PropertyName("hora_lectura")
-    val hora_lectura: String = "",
+    var hora_lectura: String = "",
 
     @PropertyName("fecha_registro")
-    val fecha_registro: String = "",
+    var fecha_registro: String = "",
 
     @PropertyName("hora_registro")
-    val hora_registro: String = "",
+    var hora_registro: String = "",
 
     @PropertyName("precipitacion")
-    val precipitacion: Double = 0.0,
+    var precipitacion: Double = 0.0,
 
     @PropertyName("temperatura_maxima")
-    val temperatura_maxima: Double? = null,
+    var temperatura_maxima: Double? = null,
 
     @PropertyName("temperatura_minima")
-    val temperatura_minima: Double? = null,
+    var temperatura_minima: Double? = null,
 
     @PropertyName("condiciones_dia")
-    val condiciones_dia: String = "",
+    var condiciones_dia: String = "",
 
     @PropertyName("observaciones")
-    val observaciones: String? = null,
+    var observaciones: String? = null,
 
+    // ===== SINCRONIZACIÓN OFFLINE =====
+    @PropertyName("syncStatus")
+    var syncStatus: SyncStatus = SyncStatus.ENVIADO,
+    @PropertyName("fechaRegistroLocal")
+    var fechaRegistroLocal: Long = System.currentTimeMillis(),
+
+    @Ignore
     @ServerTimestamp
     @PropertyName("fecha_creacion")
-    val fecha_creacion: Date? = null,
+    var fecha_creacion: Date? = null,
 
+    @Ignore
     @ServerTimestamp
     @PropertyName("fecha_modificacion")
-    val fecha_modificacion: Date? = null,
+    var fecha_modificacion: Date? = null,
 
     @PropertyName("activo")
-    val activo: Boolean = true
-) {
-    constructor() : this(
-        id = "",
-        voluntario_uid = "",
-        voluntario_nombre = "",
-        pluviometro_id = "",
-        pluviometro_registro = "",
-        pluviometro_responsable_uid = "",
-        fecha_lectura = "",
-        hora_lectura = "",
-        fecha_registro = "",
-        hora_registro = "",
-        precipitacion = 0.0,
-        temperatura_maxima = null,
-        temperatura_minima = null,
-        condiciones_dia = "",
-        observaciones = null,
-        fecha_creacion = null,
-        fecha_modificacion = null,
-        activo = true
-    )
-}
+    var activo: Boolean = true
+)

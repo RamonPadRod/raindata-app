@@ -21,8 +21,17 @@ import hn.unah.raindata.viewmodel.AuthViewModel
 import hn.unah.raindata.viewmodel.DatoMeteorologicoViewModel
 import hn.unah.raindata.viewmodel.PluviometroViewModel
 import hn.unah.raindata.viewmodel.VoluntarioViewModel
+import hn.unah.raindata.data.database.entities.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.PeriodicWorkRequest
+import androidx.work.WorkManager
+import hn.unah.raindata.data.sync.SyncWorker
+import java.util.concurrent.TimeUnit
 
 
 enum class Pantalla {
@@ -57,6 +66,9 @@ class MainActivity : ComponentActivity() {
         config.setLocale(locale)
         @Suppress("DEPRECATION")
         resources.updateConfiguration(config, resources.displayMetrics)
+
+        // ===== CONFIGURAR SINCRONIZACIÓN AUTOMÁTICA =====
+        configurarSincronizacion()
 
         setContent {
             RainDataTheme {
@@ -184,7 +196,7 @@ class MainActivity : ComponentActivity() {
                             authViewModel = authViewModel,
                             onLoginSuccess = { firebaseUid ->
                                 scope.launch {
-                                    val voluntario = voluntarioViewModel.buscarPorFirebaseUid(firebaseUid)
+                                    val voluntario = voluntarioViewModel.buscarYDescargarUsuario(firebaseUid)
 
                                     if (voluntario != null) {
                                         when (voluntario.estado_aprobacion) {
@@ -253,7 +265,7 @@ class MainActivity : ComponentActivity() {
 
                                     if (currentUser != null) {
                                         voluntarioViewModel.eliminarVoluntario(
-                                            firebaseUid = currentUser.firebase_uid,
+                                            uid = currentUser.firebase_uid,
                                             onSuccess = {
                                                 authViewModel.eliminarCuentaActual(
                                                     onSuccess = {
@@ -400,6 +412,9 @@ class MainActivity : ComponentActivity() {
                                                 voluntarioViewModel.setSubPantalla("REGISTRO")
                                             }
                                         },
+                                        onVerDetalles = { voluntario ->
+                                            // TODO: Implementar detalles de voluntario
+                                        },
                                         onEditarVoluntario = { voluntario ->
                                             // TODO: Implementar edición
                                         }
@@ -481,13 +496,13 @@ class MainActivity : ComponentActivity() {
                                                 pluviometroViewModel.setSubPantalla("REGISTRO")
                                             }
                                         },
-                                        onVerDetalles = { pluviometro ->
-                                            pluviometroSeleccionadoId = pluviometro.id
+                                        onVerDetalles = { id ->
+                                            pluviometroSeleccionadoId = id
                                             pantallaActual = Pantalla.DETALLES_PLUVIOMETRO
                                             pluviometroViewModel.setSubPantalla("DETALLES")
                                         },
-                                        onEditarPluviometro = { pluviometro ->
-                                            pluviometroSeleccionadoId = pluviometro.id
+                                        onEditarPluviometro = { id ->
+                                            pluviometroSeleccionadoId = id
                                             pantallaActual = Pantalla.EDITAR_PLUVIOMETRO
                                             pluviometroViewModel.setSubPantalla("EDITAR")
                                         }
@@ -647,5 +662,21 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun configurarSincronizacion() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncRequest = PeriodicWorkRequest.Builder(SyncWorker::class.java, 15, TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "SyncDataWork",
+            ExistingPeriodicWorkPolicy.KEEP,
+            syncRequest
+        )
     }
 }

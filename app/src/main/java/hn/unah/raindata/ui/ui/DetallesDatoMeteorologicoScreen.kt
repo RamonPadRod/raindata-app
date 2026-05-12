@@ -344,7 +344,7 @@ fun DetallesDatoMeteorologicoScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = dato.observaciones,
+                            text = dato.observaciones ?: "Sin observaciones",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }

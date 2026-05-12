@@ -167,7 +167,7 @@ fun ListaVoluntariosScreen(
                                 if (UserSession.canDeleteVoluntarios()) {
                                     scope.launch {
                                         viewModel.eliminarVoluntario(
-                                            firebaseUid = voluntario.firebase_uid,
+                                            uid = voluntario.firebase_uid,
                                             onSuccess = {
                                                 scope.launch {
                                                     snackbarHostState.showSnackbar("✅ Voluntario eliminado")

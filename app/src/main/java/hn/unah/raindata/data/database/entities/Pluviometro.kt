@@ -5,52 +5,50 @@ import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ServerTimestamp
 import java.util.UUID
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.Ignore
+
 /**
- * ✅ ENTIDAD PLUVIÓMETRO - FIREBASE FIRESTORE
+ * ✅ ENTIDAD PLUVIÓMETRO - FIREBASE FIRESTORE & ROOM
  * Sistema de código automático: XX-YY-ZZZ
  * XX = Código departamento (01-18)
  * YY = Código municipio (01-28)
  * ZZZ = Número secuencial (001, 002, 003...)
  */
+@Entity(tableName = "pluviometros")
 data class Pluviometro(
+    @PrimaryKey
     @DocumentId
-    val id: String = UUID.randomUUID().toString(),
+    var id: String = UUID.randomUUID().toString(),
 
     // ===== CÓDIGO Y UBICACIÓN =====
-    val numero_registro: String = "",
-    val latitud: Double = 0.0,
-    val longitud: Double = 0.0,
-    val direccion: String = "",
-    val departamento: String = "",
-    val municipio: String = "",
-    val aldea: String = "",
-    val caserio_barrio_colonia: String? = null,
+    var numero_registro: String = "",
+    var latitud: Double = 0.0,
+    var longitud: Double = 0.0,
+    var direccion: String = "",
+    var departamento: String = "",
+    var municipio: String = "",
+    var aldea: String = "",
+    var caserio_barrio_colonia: String? = null,
 
     // ===== RESPONSABLE =====
-    val responsable_uid: String = "", // ← CAMBIO: Ahora usa firebase_uid en lugar de Long
-    val responsable_nombre: String = "",
+    var responsable_uid: String = "", // ← CAMBIO: Ahora usa firebase_uid en lugar de Long
+    var responsable_nombre: String = "",
 
     // ===== OTROS =====
-    val observaciones: String? = null,
-    val activo: Boolean = true,
+    var observaciones: String? = null,
+    var activo: Boolean = true,
+
+    // ===== SINCRONIZACIÓN OFFLINE =====
+    var syncStatus: SyncStatus = SyncStatus.ENVIADO,
+    var fechaRegistroLocal: Long = System.currentTimeMillis(),
 
     // ===== TIMESTAMPS AUTOMÁTICOS =====
+    @Ignore
     @ServerTimestamp
-    val fecha_creacion: Timestamp? = null,
+    var fecha_creacion: Timestamp? = null,
+    @Ignore
     @ServerTimestamp
-    val fecha_modificacion: Timestamp? = null
-) {
-    // Constructor vacío requerido por Firestore
-    constructor() : this(
-        id = UUID.randomUUID().toString(),
-        numero_registro = "",
-        latitud = 0.0,
-        longitud = 0.0,
-        direccion = "",
-        departamento = "",
-        municipio = "",
-        aldea = "",
-        responsable_uid = "",
-        responsable_nombre = ""
-    )
-}
+    var fecha_modificacion: Timestamp? = null
+)

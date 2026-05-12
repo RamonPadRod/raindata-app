@@ -51,15 +51,25 @@ fun LoginScreen(
     onNavigateToRecuperarPassword: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val sharedPrefs = context.getSharedPreferences("revoclimap_prefs", Context.MODE_PRIVATE)
+    val sharedPrefs = remember { context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE) }
 
     // 🔧 Estados
-    var email by remember { mutableStateOf(sharedPrefs.getString("saved_email", "") ?: "") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var rememberMe by remember { mutableStateOf(sharedPrefs.getBoolean("remember_me", false)) }
+    var rememberMe by remember { mutableStateOf(false) }
     var showError by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf("") }
+
+    // Pre-llenar credenciales si están guardadas
+    LaunchedEffect(Unit) {
+        val (savedEmail, savedPass, isRemembered) = authViewModel.obtenerCredencialesGuardadas()
+        if (isRemembered) {
+            email = savedEmail
+            password = savedPass
+            rememberMe = true
+        }
+    }
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -149,6 +159,7 @@ fun LoginScreen(
                                     authViewModel.iniciarSesion(
                                         email = email.trim(),
                                         password = password,
+                                        recordame = rememberMe,
                                         onSuccess = { uid -> onLoginSuccess(uid) },
                                         onError = { error -> errorMessage = error; showError = true }
                                     )
@@ -210,6 +221,7 @@ fun LoginScreen(
                                     authViewModel.iniciarSesion(
                                         email = email.trim(),
                                         password = password,
+                                        recordame = rememberMe,
                                         onSuccess = { uid -> onLoginSuccess(uid) },
                                         onError = { error -> errorMessage = error; showError = true }
                                     )

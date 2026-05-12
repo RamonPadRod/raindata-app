@@ -1,70 +1,89 @@
-//package hn.unah.raindata.data.repository
-//
-//import hn.unah.raindata.data.database.dao.VoluntarioDao
-//import hn.unah.raindata.data.database.entities.Voluntario
-//import kotlinx.coroutines.Dispatchers
-//import kotlinx.coroutines.withContext
-//
-//class VoluntarioRepository(private val voluntarioDao: VoluntarioDao) {
-//
-//    suspend fun guardarVoluntario(voluntario: Voluntario) = withContext(Dispatchers.IO) {
-//        voluntarioDao.insertar(voluntario)
-//    }
-//
-//    suspend fun actualizarVoluntario(voluntario: Voluntario) = withContext(Dispatchers.IO) {
-//        voluntarioDao.actualizar(voluntario)
-//    }
-//
-//    suspend fun eliminarVoluntario(id: Long) = withContext(Dispatchers.IO) {
-//        voluntarioDao.eliminar(id)
-//    }
-//
-//    suspend fun obtenerVoluntarios(): List<Voluntario> = withContext(Dispatchers.IO) {
-//        voluntarioDao.obtenerActivos()
-//    }
-//
-//    suspend fun obtenerTodos(): List<Voluntario> = withContext(Dispatchers.IO) {
-//        voluntarioDao.obtenerTodos()
-//    }
-//
-//    suspend fun buscarVoluntarios(termino: String): List<Voluntario> = withContext(Dispatchers.IO) {
-//        voluntarioDao.buscar(termino)
-//    }
-//
-//    suspend fun obtenerPorId(id: Long): Voluntario? = withContext(Dispatchers.IO) {
-//        voluntarioDao.obtenerPorId(id)
-//    }
-//
-//    // Métodos para Firebase Authentication
-//    suspend fun existeDNI(dni: String): Boolean = withContext(Dispatchers.IO) {
-//        voluntarioDao.existeDNI(dni)
-//    }
-//
-//    suspend fun obtenerPorDNI(dni: String): Voluntario? = withContext(Dispatchers.IO) {
-//        voluntarioDao.obtenerPorDNI(dni)
-//    }
-//
-//    suspend fun obtenerPorFirebaseUid(firebaseUid: String): Voluntario? = withContext(Dispatchers.IO) {
-//        voluntarioDao.obtenerPorFirebaseUid(firebaseUid)
-//    }
-//
-//    suspend fun obtenerPorEmail(email: String): Voluntario? = withContext(Dispatchers.IO) {
-//        voluntarioDao.obtenerPorEmail(email)
-//    }
-//
-//    suspend fun existeEmail(email: String): Boolean = withContext(Dispatchers.IO) {
-//        voluntarioDao.existeEmail(email)
-//    }
-//
-//    suspend fun contarTotalUsuarios(): Int = withContext(Dispatchers.IO) {
-//        voluntarioDao.contarTotalUsuarios()
-//    }
-//
-//    suspend fun obtenerSolicitudesPendientes(): List<Voluntario> = withContext(Dispatchers.IO) {
-//        voluntarioDao.obtenerSolicitudesPendientes()
-//    }
-//
-//    suspend fun actualizarEstadoAprobacion(id: Long, estado: String) = withContext(Dispatchers.IO) {
-//        voluntarioDao.actualizarEstadoAprobacion(id, estado)
-//    }
-//}
+package hn.unah.raindata.data.repository
+
+import com.google.firebase.firestore.FirebaseFirestore
+import hn.unah.raindata.data.database.dao.VoluntarioDao
+import hn.unah.raindata.data.database.entities.Voluntario
+import hn.unah.raindata.data.database.entities.SyncStatus
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+
+class VoluntarioRepository(private val dao: VoluntarioDao) {
+
+    private val firestore = FirebaseFirestore.getInstance()
+    private val collection = firestore.collection("voluntarios")
+
+    fun obtenerVoluntarios(): Flow<List<Voluntario>> {
+        return dao.obtenerActivos()
+    }
+
+    suspend fun obtenerPorUid(uid: String): Voluntario? {
+        return dao.obtenerPorUid(uid)
+    }
+
+    suspend fun obtenerPorEmail(email: String): Voluntario? {
+        return dao.obtenerPorEmail(email)
+    }
+
+    suspend fun guardarVoluntario(voluntario: Voluntario) = withContext(Dispatchers.IO) {
+        val localItem = voluntario.copy(
+            syncStatus = SyncStatus.PENDIENTE,
+            fechaRegistroLocal = System.currentTimeMillis()
+        )
+        dao.insertar(localItem)
+
+        try {
+            collection.document(localItem.firebase_uid).set(localItem).await()
+            dao.actualizarSyncStatus(localItem.firebase_uid, SyncStatus.ENVIADO)
+        } catch (e: Exception) {
+            if (e is com.google.firebase.firestore.FirebaseFirestoreException && 
+                e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE) {
+            } else {
+                dao.actualizarSyncStatus(localItem.firebase_uid, SyncStatus.ERROR)
+            }
+        }
+    }
+
+    suspend fun eliminarVoluntario(uid: String) = withContext(Dispatchers.IO) {
+        try {
+            collection.document(uid).delete().await()
+            dao.eliminarPorUid(uid)
+        } catch (e: Exception) {
+            dao.eliminarPorUid(uid)
+        }
+    }
+
+    suspend fun buscarEnNube(uid: String): Voluntario? = withContext(Dispatchers.IO) {
+        try {
+            val doc = collection.document(uid).get().await()
+            if (doc.exists()) {
+                val voluntario = doc.toObject(Voluntario::class.java)
+                voluntario?.let {
+                    // Guardar localmente para futuras sesiones offline
+                    val local = it.copy(syncStatus = SyncStatus.ENVIADO)
+                    dao.insertar(local)
+                }
+                voluntario
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun sincronizarDesdeNube() = withContext(Dispatchers.IO) {
+        try {
+            val snapshot = collection.get().await()
+            val remotos = snapshot.toObjects(Voluntario::class.java)
+            
+            remotos.forEach { remoto ->
+                val item = remoto.copy(syncStatus = SyncStatus.ENVIADO)
+                dao.insertar(item)
+            }
+        } catch (e: Exception) {
+            // Ignorar errores de red
+        }
+    }
+}

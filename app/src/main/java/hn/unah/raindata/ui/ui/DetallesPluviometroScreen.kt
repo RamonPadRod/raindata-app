@@ -166,7 +166,7 @@ fun DetallesPluviometroScreen(
                     if (!pluviometro.caserio_barrio_colonia.isNullOrBlank()) {
                         DetailRow(
                             label = "Caserío/Barrio/Colonia",
-                            value = pluviometro.caserio_barrio_colonia,
+                            value = pluviometro.caserio_barrio_colonia ?: "",
                             icon = Icons.Default.LocationOn
                         )
                     }
@@ -290,7 +290,7 @@ fun DetallesPluviometroScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = pluviometro.observaciones,
+                            text = pluviometro.observaciones ?: "Sin observaciones",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -317,18 +317,18 @@ fun DetallesPluviometroScreen(
 
                     val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
 
-                    pluviometro.fecha_creacion?.let { timestamp ->
+                    pluviometro.fecha_creacion?.let { date ->
                         DetailRow(
                             label = "Fecha de Creación",
-                            value = dateFormat.format(timestamp.toDate()),
+                            value = dateFormat.format(date),
                             icon = Icons.Default.CalendarToday
                         )
                     }
 
-                    pluviometro.fecha_modificacion?.let { timestamp ->
+                    pluviometro.fecha_modificacion?.let { date ->
                         DetailRow(
                             label = "Última modificación",
-                            value = dateFormat.format(timestamp.toDate()),
+                            value = dateFormat.format(date),
                             icon = Icons.Default.Update
                         )
                     }

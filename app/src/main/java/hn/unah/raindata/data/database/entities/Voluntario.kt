@@ -4,70 +4,72 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ServerTimestamp
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import androidx.room.Ignore
+
 /**
- * ✅ ENTIDAD VOLUNTARIO - FIREBASE FIRESTORE
+ * ✅ ENTIDAD VOLUNTARIO - FIREBASE FIRESTORE & ROOM
  * Versión limpia sin campos innecesarios
  */
+@Entity(tableName = "voluntarios")
 data class Voluntario(
+    @PrimaryKey
     @DocumentId
-    val firebase_uid: String = "",
+    var firebase_uid: String = "",
 
     // ===== INFORMACIÓN PERSONAL =====
-    val nombre: String = "",
-    val email: String = "",
-    val telefono: String? = null,
+    var nombre: String = "",
+    var email: String = "",
+    var telefono: String? = null,
 
     // ===== IDENTIFICACIÓN =====
-    val tipo_documento: String = "DNI",
-    val cedula: String? = null,
-    val pasaporte: String? = null,
-    val fecha_nacimiento: String? = null,
-    val genero: String? = null,
+    var tipo_documento: String = "DNI",
+    var cedula: String? = null,
+    var pasaporte: String? = null,
+    var fecha_nacimiento: String? = null,
+    var genero: String? = null,
 
     // ===== UBICACIÓN =====
-    val direccion: String = "",
-    val departamento: String = "",
-    val municipio: String = "",
-    val aldea: String = "",
-    val caserio_barrio_colonia: String = "",
+    var direccion: String = "",
+    var departamento: String = "",
+    var municipio: String = "",
+    var aldea: String = "",
+    var caserio_barrio_colonia: String = "",
 
     // ===== ROL Y ESTADO =====
-    val tipo_usuario: String = "Observador",
-    val estado_aprobacion: String = "Aprobado",
-    val activo: Boolean = true,
+    var tipo_usuario: String = "Observador",
+    var estado_aprobacion: String = "Aprobado",
+    var activo: Boolean = true,
 
     // ===== NOTIFICACIONES =====
-    val visto_por_admin: Boolean = false,
+    var visto_por_admin: Boolean = false,
 
     // ===== APROBACIÓN =====
-    val fecha_aprobacion: String? = null,        // ← Cambiar Timestamp por String
-    val aprobado_por_uid: String? = null,
-    val aprobado_por_nombre: String? = null,
+    var fecha_aprobacion: String? = null,
+    var aprobado_por_uid: String? = null,
+    var aprobado_por_nombre: String? = null,
 
 // ===== RECHAZO =====
-    val fecha_rechazo: String? = null,           // ← Cambiar Timestamp por String
-    val rechazado_por_uid: String? = null,
-    val rechazado_por_nombre: String? = null,
+    var fecha_rechazo: String? = null,
+    var rechazado_por_uid: String? = null,
+    var rechazado_por_nombre: String? = null,
 
     // ===== OTROS =====
-    val observaciones: String? = null,
+    var observaciones: String? = null,
+
+    // ===== SINCRONIZACIÓN OFFLINE =====
+    var syncStatus: SyncStatus = SyncStatus.ENVIADO,
+    var fechaRegistroLocal: Long = System.currentTimeMillis(),
 
     // ===== TIMESTAMPS AUTOMÁTICOS =====
+    @Ignore
     @ServerTimestamp
-    val fecha_registro: Timestamp? = null,
+    var fecha_registro: Timestamp? = null,
+    @Ignore
     @ServerTimestamp
-    val fecha_creacion: Timestamp? = null,
+    var fecha_creacion: Timestamp? = null,
+    @Ignore
     @ServerTimestamp
-    val fecha_modificacion: Timestamp? = null
-) {
-    // Constructor vacío requerido por Firestore
-    constructor() : this(
-        firebase_uid = "",
-        nombre = "",
-        email = "",
-        direccion = "",
-        departamento = "",
-        municipio = "",
-        aldea = ""
-    )
-}
+    var fecha_modificacion: Timestamp? = null
+)
