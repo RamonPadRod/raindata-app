@@ -309,6 +309,10 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         return input.uppercase().filter { it.isLetterOrDigit() }.take(20)
     }
 
+    fun seleccionarVoluntario(voluntario: Voluntario) {
+        _voluntarioSeleccionado.value = voluntario
+    }
+
     fun limpiarSeleccion() {
         _voluntarioSeleccionado.value = null
     }

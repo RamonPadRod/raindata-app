@@ -32,6 +32,13 @@ fun ListaVoluntariosScreen(
     var showNoPermissionDialog by remember { mutableStateOf(false) }
     var noPermissionMessage by remember { mutableStateOf("") }
 
+    var query by remember { mutableStateOf("") }
+    val voluntariosFiltrados = if (query.isBlank()) voluntarios else voluntarios.filter {
+        it.nombre.contains(query, ignoreCase = true) ||
+                it.aldea.contains(query, ignoreCase = true) ||
+                it.municipio.contains(query, ignoreCase = true)
+    }
+
     // ✅ NUEVO: Contar solicitudes pendientes
     val solicitudesPendientes = voluntarios.count {
         it.tipo_usuario == "Administrador" && it.estado_aprobacion == "Pendiente"
@@ -116,8 +123,20 @@ fun ListaVoluntariosScreen(
                 }
             }
 
+            // Buscador
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                label = { Text("Buscar voluntario...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+                singleLine = true
+            )
+
             // Lista de voluntarios
-            if (voluntarios.isEmpty()) {
+            if (voluntariosFiltrados.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -151,7 +170,7 @@ fun ListaVoluntariosScreen(
                     contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 80.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(voluntarios) { voluntario ->
+                    items(voluntariosFiltrados) { voluntario ->
                         VoluntarioCard(
                             voluntario = voluntario,
                             onVerDetalles = { onVerDetalles(voluntario) },

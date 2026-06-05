@@ -879,7 +879,7 @@ fun RegistroVoluntarioScreen(
                     OutlinedTextField(
                         value = aldea,
                         onValueChange = {
-                            if (it.length <= 15) viewModel.setAldeaDraft(it)
+                            if (it.length <= 50) viewModel.setAldeaDraft(it)
                         },
                         label = { Text("Aldea o colonia *") },
                         isError = errorAldea != null && aldea.isNotBlank(),
@@ -902,7 +902,7 @@ fun RegistroVoluntarioScreen(
                                     Spacer(modifier = Modifier.weight(1f))
                                 }
                                 Text(
-                                    text = "${aldea.length}/15",
+                                    text = "${aldea.length}/50",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }
@@ -921,7 +921,7 @@ fun RegistroVoluntarioScreen(
                     OutlinedTextField(
                         value = caserioBarrioColonia,
                         onValueChange = {
-                            if (it.length <= 15) viewModel.setCaserioDraft(it)
+                            if (it.length <= 50) viewModel.setCaserioDraft(it)
                         },
                         label = { Text("Caserío/Barrio/Colonia") },
                         isError = errorCaserio != null && caserioBarrioColonia.isNotBlank(),
@@ -944,7 +944,7 @@ fun RegistroVoluntarioScreen(
                                     Spacer(modifier = Modifier.weight(1f))
                                 }
                                 Text(
-                                    text = "${caserioBarrioColonia.length}/15",
+                                    text = "${caserioBarrioColonia.length}/50",
                                     style = MaterialTheme.typography.bodySmall
                                 )
                             }

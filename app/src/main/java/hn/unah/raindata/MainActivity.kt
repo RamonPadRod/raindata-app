@@ -45,6 +45,8 @@ enum class Pantalla {
     REGISTRO_VOLUNTARIO,
     LISTA_PLUVIOMETROS,
     REGISTRO_PLUVIOMETRO,
+    DETALLES_VOLUNTARIO,
+    EDITAR_VOLUNTARIO,
     DETALLES_PLUVIOMETRO,
     EDITAR_PLUVIOMETRO,
     LISTA_DATOS_METEOROLOGICOS,
@@ -151,6 +153,15 @@ class MainActivity : ComponentActivity() {
                         Pantalla.REGISTRO_DATO_METEOROLOGICO -> {
                             pantallaActual = Pantalla.LISTA_DATOS_METEOROLOGICOS
                             datoMeteorologicoViewModel.resetSubPantalla()
+                        }
+                        Pantalla.DETALLES_VOLUNTARIO -> {
+                            pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                            voluntarioViewModel.limpiarSeleccion()
+                            voluntarioViewModel.resetSubPantalla()
+                        }
+                        Pantalla.EDITAR_VOLUNTARIO -> {
+                            pantallaActual = Pantalla.DETALLES_VOLUNTARIO
+                            voluntarioViewModel.setSubPantalla("DETALLES")
                         }
                         Pantalla.DETALLES_PLUVIOMETRO -> {
                             pantallaActual = Pantalla.LISTA_PLUVIOMETROS
@@ -413,10 +424,14 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onVerDetalles = { voluntario ->
-                                            // TODO: Implementar detalles de voluntario
+                                            voluntarioViewModel.seleccionarVoluntario(voluntario)
+                                            pantallaActual = Pantalla.DETALLES_VOLUNTARIO
+                                            voluntarioViewModel.setSubPantalla("DETALLES")
                                         },
                                         onEditarVoluntario = { voluntario ->
-                                            // TODO: Implementar edición
+                                            voluntarioViewModel.seleccionarVoluntario(voluntario)
+                                            pantallaActual = Pantalla.EDITAR_VOLUNTARIO
+                                            voluntarioViewModel.setSubPantalla("EDITAR")
                                         }
                                     )
                                 }
@@ -485,6 +500,45 @@ class MainActivity : ComponentActivity() {
                                         },
                                         soloAdministrador = false
                                     )
+                                }
+
+                                Pantalla.DETALLES_VOLUNTARIO -> {
+                                    val v = voluntarioViewModel.voluntarioSeleccionado.collectAsState().value
+                                    v?.let {
+                                        DetallesVoluntarioScreen(
+                                            voluntario = it,
+                                            voluntarioViewModel = voluntarioViewModel,
+                                            onNavigateBack = {
+                                                pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                                                voluntarioViewModel.limpiarSeleccion()
+                                                voluntarioViewModel.resetSubPantalla()
+                                            },
+                                            onEditar = {
+                                                pantallaActual = Pantalla.EDITAR_VOLUNTARIO
+                                                voluntarioViewModel.setSubPantalla("EDITAR")
+                                            }
+                                        )
+                                    } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
+
+                                Pantalla.EDITAR_VOLUNTARIO -> {
+                                    val v = voluntarioViewModel.voluntarioSeleccionado.collectAsState().value
+                                    v?.let {
+                                        RegistroVoluntarioScreen(
+                                            viewModel = voluntarioViewModel,
+                                            emailPrecargado = it.email,
+                                            firebaseUid = it.firebase_uid,
+                                            onVoluntarioGuardado = {
+                                                pantallaActual = Pantalla.DETALLES_VOLUNTARIO
+                                                voluntarioViewModel.setSubPantalla("DETALLES")
+                                            },
+                                            soloAdministrador = false
+                                        )
+                                    } ?: Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
+                                    }
                                 }
 
                                 Pantalla.LISTA_PLUVIOMETROS -> {
