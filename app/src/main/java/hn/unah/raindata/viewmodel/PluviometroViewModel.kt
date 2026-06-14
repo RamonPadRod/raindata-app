@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 /**
  * ✅ VIEWMODEL DE PLUVIÓMETROS - MODO OFFLINE REPOSITORY
@@ -89,13 +90,11 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
                 _codigoGenerado.value = ""
                 return@launch
             }
-            
-            // Contar cuántos hay en este depto para el correlativo
-            repository.obtenerPluviometros().collect { lista ->
-                val count = lista.count { it.departamento == departamento } + 1
-                val correlativo = count.toString().padStart(3, '0')
-                _codigoGenerado.value = "PL-$deptoCode-$correlativo"
-            }
+
+            val lista = repository.obtenerPluviometros().first()
+            val count = lista.count { it.departamento == departamento } + 1
+            val correlativo = count.toString().padStart(3, '0')
+            _codigoGenerado.value = "PL-$deptoCode-$correlativo"
         }
     }
 
@@ -152,7 +151,7 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                repository.guardarPluviometro(pluviometro)
+                repository.guardarPluviometro(pluviometro, getApplication())
                 _isLoading.value = false
                 onSuccess()
             } catch (e: Exception) {

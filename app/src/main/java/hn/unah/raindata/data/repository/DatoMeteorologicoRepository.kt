@@ -22,21 +22,21 @@ class DatoMeteorologicoRepository(private val dao: DatoMeteorologicoDao) {
         return dao.obtenerPorId(id)
     }
 
-    suspend fun guardarDato(dato: DatoMeteorologico) = withContext(Dispatchers.IO) {
-        // 1. Guardar localmente como PENDIENTE
+    suspend fun guardarDato(dato: DatoMeteorologico, context: android.content.Context) = withContext(Dispatchers.IO) {
         val localItem = dato.copy(
             syncStatus = SyncStatus.PENDIENTE,
             fechaRegistroLocal = System.currentTimeMillis()
         )
         dao.insertar(localItem)
 
-        // 2. Intentar enviar a Firebase
+        // Backup local inmediato
+        hn.unah.raindata.data.database.DatabaseBackupManager.realizarBackup(context)
+
         try {
             collection.document(localItem.id).set(localItem).await()
-            // 3. Si tiene éxito, marcar como ENVIADO
             dao.actualizarSyncStatus(localItem.id, SyncStatus.ENVIADO)
         } catch (e: Exception) {
-            if (e is com.google.firebase.firestore.FirebaseFirestoreException && 
+            if (e is com.google.firebase.firestore.FirebaseFirestoreException &&
                 e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE) {
                 // Mantener pendiente
             } else {

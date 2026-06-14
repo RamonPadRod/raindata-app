@@ -89,7 +89,7 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                repository.guardarDato(dato)
+                repository.guardarDato(dato, getApplication())
                 _isLoading.value = false
                 onSuccess()
             } catch (e: Exception) {
@@ -107,7 +107,7 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                repository.guardarDato(dato) // Repository maneja insert/update
+                repository.guardarDato(dato, getApplication())
                 _isLoading.value = false
                 onSuccess()
             } catch (e: Exception) {
