@@ -8,6 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import android.content.Context
+import hn.unah.raindata.data.database.DatabaseBackupManager
 
 class PluviometroRepository(private val pluviometroDao: PluviometroDao) {
 
@@ -22,22 +24,21 @@ class PluviometroRepository(private val pluviometroDao: PluviometroDao) {
         return pluviometroDao.obtenerPorId(id)
     }
 
-    suspend fun guardarPluviometro(pluviometro: Pluviometro) = withContext(Dispatchers.IO) {
-        // 1. Guardar localmente como PENDIENTE
+    suspend fun guardarPluviometro(pluviometro: Pluviometro, context: Context) = withContext(Dispatchers.IO) {
         val localItem = pluviometro.copy(
             syncStatus = SyncStatus.PENDIENTE,
             fechaRegistroLocal = System.currentTimeMillis()
         )
         pluviometroDao.insertar(localItem)
 
-        // 2. Intentar enviar a Firebase
+        // Backup local inmediato tras guardar
+        DatabaseBackupManager.realizarBackup(context)
+
         try {
             collection.document(localItem.id).set(localItem).await()
-            // 3. Si tiene éxito, marcar como ENVIADO
             pluviometroDao.actualizarSyncStatus(localItem.id, SyncStatus.ENVIADO)
         } catch (e: Exception) {
-            // Si falla por red, se queda como PENDIENTE. Si es otro error, marcar como ERROR
-            if (e is com.google.firebase.firestore.FirebaseFirestoreException && 
+            if (e is com.google.firebase.firestore.FirebaseFirestoreException &&
                 e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE) {
                 // Mantener pendiente
             } else {
