@@ -56,6 +56,10 @@ android {
             excludes += "META-INF/LICENSE.md"
             excludes += "META-INF/LICENSE-notice.md"
             excludes += "META-INF/NOTICE.md"
+            excludes += "META-INF/NOTICE"
+            excludes += "META-INF/LICENSE"
+            excludes += "META-INF/versions/9/module-info.class"
+            excludes += "META-INF/DEPENDENCIES"
         }
     }
 }
@@ -97,6 +101,13 @@ dependencies {
     // ===== WORKMANAGER & SECURITY =====
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // ===== EXPORTACIÓN EXCEL (fastexcel - 100% compatible Android) =====
+    implementation("org.dhatim:fastexcel:0.16.4")
+    implementation("org.dhatim:fastexcel-reader:0.16.4")
+
+    // ===== EXPORTACIÓN PDF (iText para Android) =====
+    implementation("com.itextpdf:itextg:5.5.10")
 
 
     // ===== GOOGLE MAPS =====

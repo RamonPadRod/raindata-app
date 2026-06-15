@@ -58,8 +58,10 @@ class DatoMeteorologicoRepository(private val dao: DatoMeteorologicoDao) {
         try {
             val snapshot = collection.get().await()
             val remotos = snapshot.toObjects(DatoMeteorologico::class.java)
-            
+
             remotos.forEach { remoto ->
+                android.util.Log.d("DEBUG_SYNC",
+                    "id=${remoto.id} activo=${remoto.activo} fecha=${remoto.fecha_lectura}")
                 val item = remoto.copy(syncStatus = SyncStatus.ENVIADO)
                 dao.insertar(item)
             }

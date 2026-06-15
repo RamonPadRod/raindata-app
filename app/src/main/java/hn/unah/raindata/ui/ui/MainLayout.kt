@@ -29,6 +29,7 @@ fun MainLayout(
     onNavigateToPluviometros: () -> Unit,
     onNavigateToDatosMeteorologicos: () -> Unit,
     onNavigateToPerfil: () -> Unit,
+    onNavigateToEstadisticas: () -> Unit,
     onLogout: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -56,6 +57,10 @@ fun MainLayout(
                     onNavigateToDatosMeteorologicos()
                     scope.launch { drawerState.close() }
                 },
+                onNavigateToEstadisticas = {
+                    onNavigateToEstadisticas()
+                    scope.launch { drawerState.close() }
+                },
                 onLogout = {
                     scope.launch { drawerState.close() }
                     onLogout()
@@ -80,6 +85,7 @@ fun MainLayout(
                                 "DATOS_METEOROLOGICOS" -> "Datos meteorológicos"
                                 "REGISTRO_DATO_METEOROLOGICO" -> "Registro de dato meteorológico"
                                 "PERFIL" -> "Perfil de usuario"
+                                "ESTADISTICAS" -> "Estadísticas y Reportes"
                                 else -> "DatosLluvia"
                             }
                         )
@@ -160,9 +166,9 @@ fun MainLayout(
                             CustomNavigationItem(
                                 icon = Icons.Default.Assessment,
                                 label = "Reportes",
-                                selected = false,
-                                enabled = false,
-                                onClick = { },
+                                selected = currentScreen == "ESTADISTICAS",
+                                enabled = true,
+                                onClick = onNavigateToEstadisticas,
                                 modifier = Modifier.weight(1f)
                             )
                             
@@ -196,6 +202,7 @@ fun DrawerContent(
     onNavigateToVoluntarios: () -> Unit,
     onNavigateToPluviometros: () -> Unit,
     onNavigateToDatosMeteorologicos: () -> Unit,
+    onNavigateToEstadisticas: () -> Unit,
     onLogout: () -> Unit,
     onCloseDrawer: () -> Unit
 ) {
@@ -271,6 +278,14 @@ fun DrawerContent(
                 isSelected = currentScreen == "DATOS_METEOROLOGICOS" || currentScreen == "REGISTRO_DATO_METEOROLOGICO",
                 isEnabled = true,
                 onClick = onNavigateToDatosMeteorologicos
+            )
+
+            DrawerMenuItem(
+                icon = Icons.Default.Assessment,
+                title = "Estadísticas y Reportes",
+                isSelected = currentScreen == "ESTADISTICAS",
+                isEnabled = true,
+                onClick = onNavigateToEstadisticas
             )
 
             DrawerMenuItem(

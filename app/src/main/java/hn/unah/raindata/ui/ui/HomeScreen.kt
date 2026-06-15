@@ -21,6 +21,7 @@ fun HomeScreen(
     onNavigateToVoluntarios: () -> Unit = {},
     onNavigateToPluviometros: () -> Unit = {},
     onNavigateToDatosMeteorologicos: () -> Unit = {},
+    onNavigateToEstadisticas: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     val currentUser = UserSession.getCurrentUser()
@@ -152,8 +153,8 @@ fun HomeScreen(
                 title = "Reportes y estadísticas",
                 description = "Generar reportes y visualizar estadísticas del sistema",
                 icon = Icons.Default.Assessment,
-                isEnabled = false,
-                onClick = { }
+                isEnabled = true,
+                onClick = onNavigateToEstadisticas
             )
         }
 

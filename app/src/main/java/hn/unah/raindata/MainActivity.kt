@@ -19,6 +19,7 @@ import hn.unah.raindata.ui.ui.*  // <-- ESTA LÍNEA ES CRÍTICA
 import hn.unah.raindata.ui.theme.RainDataTheme
 import hn.unah.raindata.viewmodel.AuthViewModel
 import hn.unah.raindata.viewmodel.DatoMeteorologicoViewModel
+import hn.unah.raindata.viewmodel.EstadisticasViewModel
 import hn.unah.raindata.viewmodel.PluviometroViewModel
 import hn.unah.raindata.viewmodel.VoluntarioViewModel
 import hn.unah.raindata.data.database.entities.*
@@ -53,6 +54,7 @@ enum class Pantalla {
     REGISTRO_DATO_METEOROLOGICO,
     DETALLES_DATO_METEOROLOGICO,
     EDITAR_DATO_METEOROLOGICO,
+    ESTADISTICAS,
     PERFIL
 }
 
@@ -78,6 +80,7 @@ class MainActivity : ComponentActivity() {
                 val voluntarioViewModel: VoluntarioViewModel = viewModel()
                 val pluviometroViewModel: PluviometroViewModel = viewModel()
                 val datoMeteorologicoViewModel: DatoMeteorologicoViewModel = viewModel()
+                val estadisticasViewModel: EstadisticasViewModel = viewModel()
 
                 // rememberSaveable: sobrevive a Configuration Changes (rotación, tema, bluetooth)
                 var pantallaActual by rememberSaveable { mutableStateOf(Pantalla.LOGIN) }
@@ -136,6 +139,7 @@ class MainActivity : ComponentActivity() {
                         Pantalla.LISTA_VOLUNTARIOS,
                         Pantalla.LISTA_PLUVIOMETROS,
                         Pantalla.LISTA_DATOS_METEOROLOGICOS,
+                        Pantalla.ESTADISTICAS,
                         Pantalla.PERFIL -> pantallaActual = Pantalla.HOME
                         Pantalla.REGISTRO_VOLUNTARIO -> {
                             if (UserSession.isLoggedIn()) {
@@ -332,6 +336,7 @@ class MainActivity : ComponentActivity() {
                                 Pantalla.REGISTRO_DATO_METEOROLOGICO -> "REGISTRO_DATO_METEOROLOGICO"
                                 Pantalla.DETALLES_DATO_METEOROLOGICO -> "DATOS_METEOROLOGICOS"
                                 Pantalla.EDITAR_DATO_METEOROLOGICO -> "DATOS_METEOROLOGICOS"
+                                Pantalla.ESTADISTICAS -> "ESTADISTICAS"
                                 Pantalla.PERFIL -> "PERFIL"
                                 else -> "HOME"
                             },
@@ -365,6 +370,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onNavigateToPerfil = { pantallaActual = Pantalla.PERFIL },
+                            onNavigateToEstadisticas = { pantallaActual = Pantalla.ESTADISTICAS },
                             onLogout = {
                                 authViewModel.cerrarSesion()
                                 UserSession.logout()
@@ -402,6 +408,7 @@ class MainActivity : ComponentActivity() {
                                                 }
                                             }
                                         },
+                                        onNavigateToEstadisticas = { pantallaActual = Pantalla.ESTADISTICAS }, // ← AGREGAR AQUÍ
                                         onLogout = {
                                             authViewModel.cerrarSesion()
                                             UserSession.logout()
@@ -706,6 +713,12 @@ class MainActivity : ComponentActivity() {
                                             UserSession.logout()
                                             pantallaActual = Pantalla.LOGIN
                                         }
+                                    )
+                                }
+
+                                Pantalla.ESTADISTICAS -> {
+                                    EstadisticasScreen(
+                                        viewModel = estadisticasViewModel
                                     )
                                 }
 

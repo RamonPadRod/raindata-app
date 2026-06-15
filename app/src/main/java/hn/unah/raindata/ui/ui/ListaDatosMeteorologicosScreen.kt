@@ -499,36 +499,7 @@ fun DatoMeteorologicoCard(
                             Spacer(modifier = Modifier.weight(1f))
                         }
 
-                        val condiciones = dato.condiciones_dia.split("|").filter { it.isNotBlank() }
-                        if (condiciones.isNotEmpty()) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Condiciones:",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    condiciones.take(2).forEach { condicion ->
-                                        Surface(
-                                            color = MaterialTheme.colorScheme.secondaryContainer,
-                                            shape = MaterialTheme.shapes.small
-                                        ) {
-                                            Text(
-                                                text = if (condicion.length > 12) condicion.take(12) + "..." else condicion,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
