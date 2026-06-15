@@ -69,6 +69,10 @@ class EstadisticasViewModel(application: Application) : AndroidViewModel(applica
     val listaVoluntarios: StateFlow<List<Pair<String, String>>> = _listaVoluntarios.asStateFlow()
 
     init {
+        refrescarEstadisticas()
+    }
+
+    fun refrescarEstadisticas() {
         cargarFiltrosDisponibles()
         calcularEstadisticas()
     }

@@ -54,7 +54,7 @@ interface DatoMeteorologicoDao {
     suspend fun sumarPrecipitacion(desde: String, hasta: String, pluvId: String, volId: String): Double
 
     @Query("""
-        SELECT COALESCE(AVG(precipitacion), 0.0) FROM datos_meteorologicos
+        SELECT COALESCE(SUM(precipitacion) / NULLIF(COUNT(DISTINCT fecha_lectura), 0), 0.0) FROM datos_meteorologicos
         WHERE activo = 1
           AND (:desde = '' OR fecha_lectura >= :desde)
           AND (:hasta = '' OR fecha_lectura <= :hasta)
@@ -77,7 +77,7 @@ interface DatoMeteorologicoDao {
     suspend fun diaMayorPrecipitacion(desde: String, hasta: String, pluvId: String, volId: String): String?
 
     @Query("""
-        SELECT COALESCE(MAX(temperatura_maxima), 0.0) FROM datos_meteorologicos
+        SELECT MAX(temperatura_maxima) FROM datos_meteorologicos
         WHERE activo = 1 AND temperatura_maxima IS NOT NULL
           AND (:desde = '' OR fecha_lectura >= :desde)
           AND (:hasta = '' OR fecha_lectura <= :hasta)
@@ -87,7 +87,7 @@ interface DatoMeteorologicoDao {
     suspend fun temperaturaMaximaAbsoluta(desde: String, hasta: String, pluvId: String, volId: String): Double?
 
     @Query("""
-        SELECT COALESCE(MIN(temperatura_minima), 0.0) FROM datos_meteorologicos
+        SELECT MIN(temperatura_minima) FROM datos_meteorologicos
         WHERE activo = 1 AND temperatura_minima IS NOT NULL
           AND (:desde = '' OR fecha_lectura >= :desde)
           AND (:hasta = '' OR fecha_lectura <= :hasta)
@@ -97,7 +97,7 @@ interface DatoMeteorologicoDao {
     suspend fun temperaturaMinimaAbsoluta(desde: String, hasta: String, pluvId: String, volId: String): Double?
 
     @Query("""
-        SELECT COALESCE(AVG(temperatura_maxima), 0.0) FROM datos_meteorologicos
+        SELECT AVG(temperatura_maxima) FROM datos_meteorologicos
         WHERE activo = 1 AND temperatura_maxima IS NOT NULL
           AND (:desde = '' OR fecha_lectura >= :desde)
           AND (:hasta = '' OR fecha_lectura <= :hasta)
@@ -107,7 +107,7 @@ interface DatoMeteorologicoDao {
     suspend fun promedioTemperaturaMaxima(desde: String, hasta: String, pluvId: String, volId: String): Double?
 
     @Query("""
-        SELECT COALESCE(AVG(temperatura_minima), 0.0) FROM datos_meteorologicos
+        SELECT AVG(temperatura_minima) FROM datos_meteorologicos
         WHERE activo = 1 AND temperatura_minima IS NOT NULL
           AND (:desde = '' OR fecha_lectura >= :desde)
           AND (:hasta = '' OR fecha_lectura <= :hasta)
@@ -122,12 +122,13 @@ interface DatoMeteorologicoDao {
         WHERE activo = 1
           AND (:desde = '' OR fecha_lectura >= :desde)
           AND (:hasta = '' OR fecha_lectura <= :hasta)
+          AND (:pluvId = '' OR pluviometro_id = :pluvId)
           AND (:volId  = '' OR voluntario_uid = :volId)
         GROUP BY pluviometro_id, pluviometro_registro
         ORDER BY totalPrecipitacion DESC
         LIMIT 10
     """)
-    suspend fun precipitacionPorPluviometro(desde: String, hasta: String, volId: String): List<PrecipPluvResult>
+    suspend fun precipitacionPorPluviometro(desde: String, hasta: String, pluvId: String, volId: String): List<PrecipPluvResult>
 
     @Query("""
         SELECT voluntario_nombre, COUNT(*) AS totalRegistros
@@ -148,12 +149,13 @@ interface DatoMeteorologicoDao {
         WHERE activo = 1
           AND (:desde = '' OR fecha_lectura >= :desde)
           AND (:hasta = '' OR fecha_lectura <= :hasta)
+          AND (:pluvId = '' OR pluviometro_id = :pluvId)
           AND (:volId  = '' OR voluntario_uid = :volId)
         GROUP BY pluviometro_id, pluviometro_registro
         ORDER BY totalRegistros DESC
         LIMIT 1
     """)
-    suspend fun pluviometroMasActivo(desde: String, hasta: String, volId: String): PluvioActResult?
+    suspend fun pluviometroMasActivo(desde: String, hasta: String, pluvId: String, volId: String): PluvioActResult?
 
     @Query("SELECT id, activo, fecha_lectura, syncStatus FROM datos_meteorologicos")
     suspend fun debugTodos(): List<DebugDato>

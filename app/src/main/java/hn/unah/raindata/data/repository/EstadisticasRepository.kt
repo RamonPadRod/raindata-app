@@ -56,14 +56,14 @@ class EstadisticasRepository(
             )
 
             val precipPorPluvio = datoDao
-                .precipitacionPorPluviometro(desde, hasta, vid)
+                .precipitacionPorPluviometro(desde, hasta, pid, vid)
                 .map { PrecipPorPluviometro(registro = it.pluviometro_registro, totalMm = it.totalPrecipitacion) }
 
             val topVol = datoDao.voluntarioConMasRegistros(desde, hasta, pid)?.let {
                 TopVoluntario(nombre = it.voluntario_nombre, totalRegistros = it.totalRegistros)
             }
 
-            val topPluv = datoDao.pluviometroMasActivo(desde, hasta, vid)?.let {
+            val topPluv = datoDao.pluviometroMasActivo(desde, hasta, pid, vid)?.let {
                 PluvioMasActivo(registro = it.pluviometro_registro, totalRegistros = it.totalRegistros)
             }
 

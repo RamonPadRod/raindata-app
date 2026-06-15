@@ -46,6 +46,10 @@ fun EstadisticasScreen(viewModel: EstadisticasViewModel) {
     val listaPluviometros by viewModel.listaPluviometros.collectAsState()
     val listaVoluntarios by viewModel.listaVoluntarios.collectAsState()
 
+    LaunchedEffect(Unit) {
+        viewModel.refrescarEstadisticas()
+    }
+
     // Mostrar snackbar cuando se genera un archivo
     LaunchedEffect(exportResult) {
         exportResult?.let { uri ->
