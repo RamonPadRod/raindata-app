@@ -105,20 +105,30 @@ fun RegistroDatoMeteorologicoScreen(
     )
 
     val pluviometrosFiltrados = remember(voluntarioSeleccionado, todosLosPluviometros) {
-        if (UserSession.isAdmin()) {
-            voluntarioSeleccionado?.let { voluntario ->
-                todosLosPluviometros.filter { it.responsable_uid == voluntario.firebase_uid }
-            } ?: emptyList()
-        } else {
-            todosLosPluviometros
+        when {
+            UserSession.isAdmin() -> {
+                // Admin: muestra solo los pluviómetros del voluntario seleccionado
+                voluntarioSeleccionado?.let { voluntario ->
+                    todosLosPluviometros.filter { it.responsable_uid == voluntario.firebase_uid }
+                } ?: emptyList()
+            }
+            UserSession.isVoluntario() -> {
+                // Voluntario: muestra SOLO sus propios pluviómetros (filtrado por firebase_uid)
+                val uid = UserSession.getCurrentUserUid() ?: ""
+                todosLosPluviometros.filter { it.responsable_uid == uid }
+            }
+            else -> emptyList()
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (UserSession.isVoluntario()) {
+    // Se ejecuta cuando la lista de voluntarios ya cargó (no en Unit que puede estar vacía)
+    LaunchedEffect(voluntariosElegibles) {
+        if (UserSession.isVoluntario() && voluntariosElegibles.isNotEmpty()) {
             val uid = UserSession.getCurrentUserUid()
             val voluntario = voluntariosElegibles.find { it.firebase_uid == uid }
-            voluntarioSeleccionado = voluntario
+            if (voluntario != null) {
+                voluntarioSeleccionado = voluntario
+            }
         }
     }
 

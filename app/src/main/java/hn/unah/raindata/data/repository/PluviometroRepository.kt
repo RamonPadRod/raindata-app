@@ -34,12 +34,19 @@ class PluviometroRepository(private val pluviometroDao: PluviometroDao) {
         // Backup local inmediato tras guardar
         DatabaseBackupManager.realizarBackup(context)
 
+        // Si estamos offline, no intentamos subir a Firestore porque .await() se quedaría bloqueado
+        if (!hn.unah.raindata.data.utils.NetworkMonitor.isOnline.value) {
+            android.util.Log.d("PluviometroRepository", "Offline - Pluviómetro guardado localmente como PENDIENTE: ${localItem.id}")
+            return@withContext
+        }
+
         try {
             collection.document(localItem.id).set(localItem).await()
             pluviometroDao.actualizarSyncStatus(localItem.id, SyncStatus.ENVIADO)
+            android.util.Log.d("PluviometroRepository", "Pluviómetro guardado en Firestore: ${localItem.id}")
         } catch (e: Exception) {
-            if (e is com.google.firebase.firestore.FirebaseFirestoreException &&
-                e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE) {
+            android.util.Log.e("PluviometroRepository", "Error al guardar en Firestore: ${localItem.id}", e)
+            if (hn.unah.raindata.data.utils.NetworkUtils.isConnectionError(e)) {
                 // Mantener pendiente
             } else {
                 pluviometroDao.actualizarSyncStatus(localItem.id, SyncStatus.ERROR)
@@ -60,6 +67,8 @@ class PluviometroRepository(private val pluviometroDao: PluviometroDao) {
     }
 
     suspend fun sincronizarDesdeNube() = withContext(Dispatchers.IO) {
+        if (!hn.unah.raindata.data.utils.NetworkMonitor.isOnline.value) return@withContext
+        sincronizarPendientesLocal()
         try {
             val snapshot = collection.get().await()
             val remotos = snapshot.toObjects(Pluviometro::class.java)
@@ -71,6 +80,28 @@ class PluviometroRepository(private val pluviometroDao: PluviometroDao) {
             }
         } catch (e: Exception) {
             // Error de red o permisos, ignorar para modo offline
+        }
+    }
+
+    suspend fun sincronizarPendientesLocal() {
+        if (!hn.unah.raindata.data.utils.NetworkMonitor.isOnline.value) return
+        val pendientes = pluviometroDao.obtenerPorSyncStatus(SyncStatus.PENDIENTE)
+        for (item in pendientes) {
+            try {
+                collection.document(item.id).set(item).await()
+                pluviometroDao.actualizarSyncStatus(item.id, SyncStatus.ENVIADO)
+                android.util.Log.d("PluviometroRepo", "✅ Pendiente sincronizado: ${item.id}")
+            } catch (e: Exception) {
+                val errorMsg = e.message ?: "Desconocido"
+                android.util.Log.e("PluviometroRepo", "❌ Error al sincronizar pendiente (ID: ${item.id}): $errorMsg", e)
+                
+                if (hn.unah.raindata.data.utils.NetworkUtils.isConnectionError(e)) {
+                    android.util.Log.w("PluviometroRepo", "⚠️ Error de conexión para ${item.id}. Se mantiene PENDIENTE.")
+                } else {
+                    android.util.Log.e("PluviometroRepo", "🛑 Error definitivo para ${item.id}. Marcando como ERROR.")
+                    pluviometroDao.actualizarSyncStatus(item.id, SyncStatus.ERROR)
+                }
+            }
         }
     }
 }

@@ -18,7 +18,7 @@ import hn.unah.raindata.data.database.entities.Voluntario
         Pluviometro::class,
         DatoMeteorologico::class
     ],
-    version = 9, // Incrementamos versión para transición a Room
+    version = 10, // Incrementamos versión para forzar migración limpia tras cambios de offline mode
     exportSchema = false
 )
 @TypeConverters(Converters::class)

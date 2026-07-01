@@ -74,6 +74,10 @@ class MainActivity : ComponentActivity() {
         // ===== CONFIGURAR SINCRONIZACIÓN AUTOMÁTICA =====
         configurarSincronizacion()
 
+        // NetworkMonitor ya fue inicializado en RainDataApp.onCreate().
+        // No llamar init() aquí de nuevo: la guardia en NetworkMonitor lo ignoraría,
+        // pero mantener una sola inicialización es más limpio y evita confusión.
+
         setContent {
             RainDataTheme {
                 val authViewModel: AuthViewModel = viewModel()

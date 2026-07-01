@@ -33,12 +33,20 @@ class VoluntarioRepository(private val dao: VoluntarioDao) {
         )
         dao.insertar(localItem)
 
+        // Si estamos offline, no intentamos subir a Firestore porque .await() se quedaría bloqueado
+        if (!hn.unah.raindata.data.utils.NetworkMonitor.isOnline.value) {
+            android.util.Log.d("VoluntarioRepository", "Offline - Voluntario guardado localmente como PENDIENTE: ${localItem.firebase_uid}")
+            return@withContext
+        }
+
         try {
             collection.document(localItem.firebase_uid).set(localItem).await()
             dao.actualizarSyncStatus(localItem.firebase_uid, SyncStatus.ENVIADO)
+            android.util.Log.d("VoluntarioRepository", "Voluntario guardado en Firestore: ${localItem.firebase_uid}")
         } catch (e: Exception) {
-            if (e is com.google.firebase.firestore.FirebaseFirestoreException && 
-                e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE) {
+            android.util.Log.e("VoluntarioRepository", "Error al guardar en Firestore: ${localItem.firebase_uid}", e)
+            if (hn.unah.raindata.data.utils.NetworkUtils.isConnectionError(e)) {
+                // Mantener pendiente
             } else {
                 dao.actualizarSyncStatus(localItem.firebase_uid, SyncStatus.ERROR)
             }
@@ -73,7 +81,18 @@ class VoluntarioRepository(private val dao: VoluntarioDao) {
         }
     }
 
+    suspend fun esPrimerUsuarioEnNube(): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val snapshot = collection.limit(1).get().await()
+            snapshot.isEmpty
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     suspend fun sincronizarDesdeNube() = withContext(Dispatchers.IO) {
+        if (!hn.unah.raindata.data.utils.NetworkMonitor.isOnline.value) return@withContext
+        sincronizarPendientesLocal()
         try {
             val snapshot = collection.get().await()
             val remotos = snapshot.toObjects(Voluntario::class.java)
@@ -84,6 +103,28 @@ class VoluntarioRepository(private val dao: VoluntarioDao) {
             }
         } catch (e: Exception) {
             // Ignorar errores de red
+        }
+    }
+
+    suspend fun sincronizarPendientesLocal() {
+        if (!hn.unah.raindata.data.utils.NetworkMonitor.isOnline.value) return
+        val pendientes = dao.obtenerPorSyncStatus(SyncStatus.PENDIENTE)
+        for (item in pendientes) {
+            try {
+                collection.document(item.firebase_uid).set(item).await()
+                dao.actualizarSyncStatus(item.firebase_uid, SyncStatus.ENVIADO)
+                android.util.Log.d("VoluntarioRepo", "✅ Pendiente sincronizado: ${item.firebase_uid}")
+            } catch (e: Exception) {
+                val errorMsg = e.message ?: "Desconocido"
+                android.util.Log.e("VoluntarioRepo", "❌ Error al sincronizar pendiente (UID: ${item.firebase_uid}): $errorMsg", e)
+                
+                if (hn.unah.raindata.data.utils.NetworkUtils.isConnectionError(e)) {
+                    android.util.Log.w("VoluntarioRepo", "⚠️ Error de conexión para ${item.firebase_uid}. Se mantiene PENDIENTE.")
+                } else {
+                    android.util.Log.e("VoluntarioRepo", "🛑 Error definitivo para ${item.firebase_uid}. Marcando como ERROR.")
+                    dao.actualizarSyncStatus(item.firebase_uid, SyncStatus.ERROR)
+                }
+            }
         }
     }
 }

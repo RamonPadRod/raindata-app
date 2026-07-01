@@ -1,15 +1,31 @@
 package hn.unah.raindata.viewmodel
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
+import com.google.firebase.auth.FirebaseAuth
 import hn.unah.raindata.data.database.AppDatabase
 import hn.unah.raindata.data.database.entities.DatoMeteorologico
 import hn.unah.raindata.data.repository.DatoMeteorologicoRepository
+import hn.unah.raindata.data.sync.SyncWorker
+import hn.unah.raindata.data.utils.NetworkMonitor
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -42,14 +58,129 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
 
     init {
         cargarTodosDatos()
+        observarConectividad()
     }
 
-    fun cargarTodosDatos() {
+    /**
+     * Al recuperar conexión:
+     * 1. Sincroniza inmediatamente en el scope del ViewModel (funciona si la app está en primer plano).
+     * 2. Encola un OneTimeWorkRequest con restricción de red para garantizar la sincronización
+     *    incluso si la app va al fondo justo después de reconectarse (proceso podría morir).
+     */
+    private fun observarConectividad() {
         viewModelScope.launch {
-            _isLoading.value = true
-            // Sync de fondo
-            launch { repository.sincronizarDesdeNube() }
+            // drop(1): ignoramos el estado inicial para solo reaccionar
+            // a CAMBIOS reales de red (offline → online)
+            NetworkMonitor.isOnline.drop(1).collect { online ->
+                if (online) {
+                    android.util.Log.d("DatoMeteorologicoVM", "🌐 Online – verificando sesión Firebase Auth...")
 
+                    // Garantizar que Firebase Auth tenga sesión activa antes de sincronizar.
+                    // Puede ser null si el usuario inició sesión en modo offline y la
+                    // re-autenticación en background de AuthViewModel aún no completó.
+                    val authOk = garantizarSesionFirebase()
+                    if (!authOk) {
+                        android.util.Log.e("DatoMeteorologicoVM", "❌ No se pudo restablecer sesión Firebase. Sincronización cancelada.")
+                        return@collect
+                    }
+
+                    android.util.Log.d("DatoMeteorologicoVM", "📋 Sesión OK. Iniciando sincronización inmediata...")
+
+                    // --- Vía 1: sincronización directa en este scope (primer plano) ---
+                    launch { repository.sincronizarPendientesLocal() }
+
+                    // --- Vía 2: OneTimeWorkRequest de respaldo (segundo plano) ---
+                    // Garantiza la sincronización aunque la app muera antes de que
+                    // el scope anterior termine. WorkManager persiste la tarea.
+                    val context = getApplication<Application>()
+                    val constraints = Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                    val oneShotSync = OneTimeWorkRequest.Builder(SyncWorker::class.java)
+                        .setConstraints(constraints)
+                        .build()
+                    WorkManager.getInstance(context).enqueueUniqueWork(
+                        "ImmediateSyncOnReconnect",
+                        ExistingWorkPolicy.REPLACE,
+                        oneShotSync
+                    )
+                    android.util.Log.d("DatoMeteorologicoVM", "📋 OneTimeWorkRequest encolado (ImmediateSyncOnReconnect)")
+                }
+            }
+        }
+    }
+
+    /**
+     * Verifica que FirebaseAuth.currentUser no sea null.
+     * Si es null (sesión offline sin Firebase Auth activo), intenta re-autenticar
+     * usando las credenciales guardadas en EncryptedSharedPreferences.
+     *
+     * @return true si hay sesión válida (ya exístía o se restauró exitosamente).
+     *         false si currentUser es null Y la re-autenticación falló.
+     */
+    private suspend fun garantizarSesionFirebase(): Boolean {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        if (currentUser != null) {
+            android.util.Log.d("DatoMeteorologicoVM", "🔒 Firebase Auth activo: ${currentUser.uid} (${currentUser.email})")
+            return true
+        }
+
+        android.util.Log.w("DatoMeteorologicoVM", "⚠️ currentUser es null. Intentando re-autenticación con credenciales guardadas...")
+
+        return try {
+            val context = getApplication<Application>()
+
+            // Leer credenciales del mismo EncryptedSharedPreferences que usa AuthViewModel
+            val prefs = try {
+                val masterKey = MasterKey.Builder(context)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
+                EncryptedSharedPreferences.create(
+                    context,
+                    "auth_prefs",
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            } catch (e: Exception) {
+                // Mismo fallback que AuthViewModel
+                context.getSharedPreferences("auth_prefs_fallback", Context.MODE_PRIVATE)
+            }
+
+            val rememberMe = prefs.getBoolean("remember_me", false)
+            val email = prefs.getString("remember_email", "") ?: ""
+            val pass  = prefs.getString("remember_pass",  "") ?: ""
+
+            if (!rememberMe || email.isBlank() || pass.isBlank()) {
+                android.util.Log.w("DatoMeteorologicoVM", "⚠️ No hay credenciales guardadas para re-autenticación. " +
+                    "El usuario deberá iniciar sesión manualmente.")
+                return false
+            }
+
+            val result = withContext(Dispatchers.IO) {
+                FirebaseAuth.getInstance().signInWithEmailAndPassword(email, pass).await()
+            }
+            val uid = result.user?.uid
+            android.util.Log.d("DatoMeteorologicoVM", "✅ Re-autenticación exitosa. UID: $uid")
+            uid != null
+
+        } catch (e: Exception) {
+            android.util.Log.e("DatoMeteorologicoVM", "❌ Error en re-autenticación: ${e.message}", e)
+            false
+        }
+    }
+
+    // Job del collect activo. Se cancela antes de iniciar uno nuevo.
+    private var collectJob: Job? = null
+
+    fun cargarTodosDatos() {
+        collectJob?.cancel()
+        collectJob = viewModelScope.launch {
+            _isLoading.value = true
+            // Sync de fondo solo si estamos online
+            if (NetworkMonitor.isOnline.value) {
+                launch { repository.sincronizarDesdeNube() }
+            }
             repository.obtenerTodos().collect { lista ->
                 _datosMeteorologicos.value = lista
                 _isLoading.value = false
@@ -58,11 +189,13 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
     }
 
     fun cargarDatosPorVoluntario(uid: String) {
-        viewModelScope.launch {
+        collectJob?.cancel()
+        collectJob = viewModelScope.launch {
             _isLoading.value = true
-            // Sync de fondo
-            launch { repository.sincronizarDesdeNube() }
-
+            // Sync de fondo solo si estamos online
+            if (NetworkMonitor.isOnline.value) {
+                launch { repository.sincronizarDesdeNube() }
+            }
             repository.obtenerTodos().collect { lista ->
                 _datosMeteorologicos.value = lista.filter { it.voluntario_uid == uid }
                 _isLoading.value = false
@@ -73,6 +206,33 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
     // ALIAS para compatibilidad con pantallas existentes
     fun cargarDatoPorId(id: String) {
         obtenerPorId(id)
+    }
+
+    /**
+     * Sincronización manual disparada por el botón de la UI.
+     * Sube todos los datos pendientes y luego descarga los remotos.
+     */
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    fun sincronizarManual(
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            _isSyncing.value = true
+            try {
+                repository.sincronizarPendientesLocal()
+                repository.sincronizarDesdeNube()
+                android.util.Log.d("DatoMeteorologicoVM", "✅ Sincronización manual completada")
+                onSuccess()
+            } catch (e: Exception) {
+                android.util.Log.e("DatoMeteorologicoVM", "❌ Error en sincronización manual", e)
+                onError(e.message ?: "Error al sincronizar")
+            } finally {
+                _isSyncing.value = false
+            }
+        }
     }
 
     fun obtenerPorId(id: String) {

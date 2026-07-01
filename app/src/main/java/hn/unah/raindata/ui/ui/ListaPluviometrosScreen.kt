@@ -184,7 +184,7 @@ fun PluviometroCard(
                 status = pluviometro.syncStatus,
                 modifier = Modifier
                     .padding(8.dp)
-                    .align(Alignment.TopStart)
+                    .align(Alignment.TopEnd)
             )
 
             Column(

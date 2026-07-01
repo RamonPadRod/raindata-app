@@ -33,7 +33,9 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
                 collection.document(item.firebase_uid).set(item).await()
                 db.voluntarioDao().actualizarSyncStatus(item.firebase_uid, SyncStatus.ENVIADO)
             } catch (e: Exception) {
-                // Si es un error definitivo, marcar como ERROR
+                if (!hn.unah.raindata.data.utils.NetworkUtils.isConnectionError(e)) {
+                    db.voluntarioDao().actualizarSyncStatus(item.firebase_uid, SyncStatus.ERROR)
+                }
             }
         }
     }
@@ -47,6 +49,9 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
                 collection.document(item.id).set(item).await()
                 db.pluviometroDao().actualizarSyncStatus(item.id, SyncStatus.ENVIADO)
             } catch (e: Exception) {
+                if (!hn.unah.raindata.data.utils.NetworkUtils.isConnectionError(e)) {
+                    db.pluviometroDao().actualizarSyncStatus(item.id, SyncStatus.ERROR)
+                }
             }
         }
     }
@@ -56,10 +61,16 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         val collection = firestore.collection("datos_meteorologicos")
         
         for (item in pendientes) {
+            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            android.util.Log.d("SyncWorker", "🔒 [AUTH STATE] ANTES de set() en SyncWorker: currentUser = ${currentUser?.uid} (${currentUser?.email})")
             try {
                 collection.document(item.id).set(item).await()
                 db.datoMeteorologicoDao().actualizarSyncStatus(item.id, SyncStatus.ENVIADO)
             } catch (e: Exception) {
+                android.util.Log.e("SyncWorker", "❌ Error al sincronizar en SyncWorker para ID: ${item.id}", e)
+                if (!hn.unah.raindata.data.utils.NetworkUtils.isConnectionError(e)) {
+                    db.datoMeteorologicoDao().actualizarSyncStatus(item.id, SyncStatus.ERROR)
+                }
             }
         }
     }

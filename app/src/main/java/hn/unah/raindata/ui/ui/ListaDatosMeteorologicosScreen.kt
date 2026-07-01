@@ -34,6 +34,7 @@ fun ListaDatosMeteorologicosScreen(
 
     val datos by viewModel.datosMeteorologicos.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
 
     var showNoPermissionDialog by remember { mutableStateOf(false) }
     var noPermissionMessage by remember { mutableStateOf("") }
@@ -137,6 +138,45 @@ fun ListaDatosMeteorologicosScreen(
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
+                        }
+                    }
+
+                    // Botón de sincronización manual
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            viewModel.sincronizarManual(
+                                onSuccess = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("✅ Datos sincronizados correctamente")
+                                    }
+                                },
+                                onError = { err ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("❌ Error al sincronizar: $err")
+                                    }
+                                }
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isSyncing
+                    ) {
+                        if (isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Sincronizando...")
+                        } else {
+                            Icon(
+                                Icons.Default.Sync,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Subir datos pendientes")
                         }
                     }
 
@@ -338,7 +378,7 @@ fun DatoMeteorologicoCard(
                 status = dato.syncStatus,
                 modifier = Modifier
                     .padding(8.dp)
-                    .align(Alignment.TopStart)
+                    .align(Alignment.TopEnd)
             )
 
             Column(

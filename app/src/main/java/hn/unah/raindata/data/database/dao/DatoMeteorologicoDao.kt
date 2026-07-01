@@ -177,6 +177,9 @@ interface DatoMeteorologicoDao {
         ORDER BY fecha_lectura DESC, hora_lectura DESC
     """)
     suspend fun obtenerTodosFiltrados(desde: String, hasta: String, pluvId: String, volId: String): List<DatoMeteorologico>
+
+    @Query("SELECT * FROM datos_meteorologicos")
+    suspend fun obtenerTodosDirecto(): List<DatoMeteorologico>
 }
 
 // Resultados de queries de agregación

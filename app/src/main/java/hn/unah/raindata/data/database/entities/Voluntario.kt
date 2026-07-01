@@ -3,6 +3,7 @@ package hn.unah.raindata.data.database.entities
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ServerTimestamp
+import com.google.firebase.firestore.Exclude
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -59,7 +60,9 @@ data class Voluntario(
     var observaciones: String? = null,
 
     // ===== SINCRONIZACIÓN OFFLINE =====
+    @get:Exclude
     var syncStatus: SyncStatus = SyncStatus.ENVIADO,
+    @get:Exclude
     var fechaRegistroLocal: Long = System.currentTimeMillis(),
 
     // ===== TIMESTAMPS AUTOMÁTICOS =====

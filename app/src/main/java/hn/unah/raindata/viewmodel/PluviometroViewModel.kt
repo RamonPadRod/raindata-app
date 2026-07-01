@@ -7,11 +7,14 @@ import hn.unah.raindata.data.database.AppDatabase
 import hn.unah.raindata.data.database.entities.Pluviometro
 import hn.unah.raindata.data.repository.PluviometroRepository
 import hn.unah.raindata.data.utils.DepartamentosHonduras
+import hn.unah.raindata.data.utils.NetworkMonitor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.Job
 
 /**
  * ✅ VIEWMODEL DE PLUVIÓMETROS - MODO OFFLINE REPOSITORY
@@ -111,14 +114,35 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
 
     init {
         cargarPluviometros()
+        observarConectividad()
+    }
+
+    // Job del collect activo. Se cancela antes de iniciar uno nuevo.
+    private var collectJob: Job? = null
+
+    /**
+     * Al recuperar conexión a internet, sincroniza automáticamente los pluviómetros pendientes.
+     * drop(1): ignora el estado inicial del StateFlow para solo reaccionar a CAMBIOS de red.
+     */
+    private fun observarConectividad() {
+        viewModelScope.launch {
+            NetworkMonitor.isOnline.drop(1).collect { online ->
+                if (online) {
+                    android.util.Log.d("PluviometroViewModel", "🌐 Online – sincronizando pluviometros")
+                    launch { repository.sincronizarPendientesLocal() }
+                }
+            }
+        }
     }
 
     fun cargarPluviometros() {
-        viewModelScope.launch {
+        collectJob?.cancel()
+        collectJob = viewModelScope.launch {
             _isLoading.value = true
-            // Sync de fondo
-            launch { repository.sincronizarDesdeNube() }
-            
+            // Sync de fondo solo si estamos online
+            if (NetworkMonitor.isOnline.value) {
+                launch { repository.sincronizarDesdeNube() }
+            }
             repository.obtenerPluviometros().collect { lista ->
                 _pluviometros.value = lista
                 _isLoading.value = false
@@ -127,11 +151,13 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun cargarPluviometrosPorUsuario(uid: String) {
-        viewModelScope.launch {
+        collectJob?.cancel()
+        collectJob = viewModelScope.launch {
             _isLoading.value = true
-            // Sync de fondo
-            launch { repository.sincronizarDesdeNube() }
-
+            // Sync de fondo solo si estamos online
+            if (NetworkMonitor.isOnline.value) {
+                launch { repository.sincronizarDesdeNube() }
+            }
             repository.obtenerPluviometros().collect { lista ->
                 _pluviometros.value = lista.filter { it.responsable_uid == uid }
                 _isLoading.value = false

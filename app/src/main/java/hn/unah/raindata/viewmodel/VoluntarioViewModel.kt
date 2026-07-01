@@ -4,8 +4,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import hn.unah.raindata.data.database.AppDatabase
+import hn.unah.raindata.data.database.entities.Pluviometro
 import hn.unah.raindata.data.database.entities.Voluntario
+import hn.unah.raindata.data.repository.PluviometroRepository
 import hn.unah.raindata.data.repository.VoluntarioRepository
+import hn.unah.raindata.data.utils.NetworkMonitor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,10 +23,14 @@ import java.util.*
 class VoluntarioViewModel(application: Application) : AndroidViewModel(application) {
 
     private val db = AppDatabase.getDatabase(application)
-    private val repository = VoluntarioRepository(db.voluntarioDao())
+    private val voluntarioRepository = VoluntarioRepository(db.voluntarioDao())
+    private val pluviometroRepository = PluviometroRepository(db.pluviometroDao())
 
     private val _voluntarios = MutableStateFlow<List<Voluntario>>(emptyList())
     val voluntarios: StateFlow<List<Voluntario>> = _voluntarios.asStateFlow()
+
+    private val _pluviometros = MutableStateFlow<List<Pluviometro>>(emptyList())
+    val pluviometros: StateFlow<List<Pluviometro>> = _pluviometros.asStateFlow()
 
     private val _voluntarioSeleccionado = MutableStateFlow<Voluntario?>(null)
     val voluntarioSeleccionado: StateFlow<Voluntario?> = _voluntarioSeleccionado.asStateFlow()
@@ -104,23 +111,53 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
 
     init {
         cargarVoluntarios()
+        cargarPluviometros()
+        observarConectividad()
+    }
+
+    /**
+     * Observa el estado de conectividad y dispara sincronización automática
+     * cuando el dispositivo recupera la conexión a internet.
+     */
+    private fun observarConectividad() {
+        viewModelScope.launch {
+            NetworkMonitor.isOnline.collect { online ->
+                if (online) {
+                    android.util.Log.d("VoluntarioViewModel", "🌐 Online detectado – sincronizando pendientes")
+                    launch { voluntarioRepository.sincronizarPendientesLocal() }
+                }
+            }
+        }
     }
 
     fun cargarVoluntarios() {
         viewModelScope.launch {
             _isLoading.value = true
             // Sync de fondo
-            launch { repository.sincronizarDesdeNube() }
-            
-            repository.obtenerVoluntarios().collect { lista ->
+            launch { voluntarioRepository.sincronizarDesdeNube() }
+            voluntarioRepository.obtenerVoluntarios().collect { lista ->
                 _voluntarios.value = lista
                 _isLoading.value = false
             }
         }
     }
 
+    fun cargarPluviometros() {
+        viewModelScope.launch {
+            pluviometroRepository.obtenerPluviometros().collect { list ->
+                _pluviometros.value = list
+            }
+        }
+    }
+
+
+
     suspend fun esPrimerUsuario(): Boolean {
-        return repository.obtenerVoluntarios().first().isEmpty()
+        val locales = voluntarioRepository.obtenerVoluntarios().first()
+        if (locales.isNotEmpty()) {
+            return false
+        }
+        return voluntarioRepository.esPrimerUsuarioEnNube()
     }
 
     fun guardarVoluntario(
@@ -131,7 +168,7 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                repository.guardarVoluntario(voluntario)
+                voluntarioRepository.guardarVoluntario(voluntario)
                 _isLoading.value = false
                 onSuccess()
             } catch (e: Exception) {
@@ -142,26 +179,26 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     suspend fun buscarPorFirebaseUid(uid: String): Voluntario? {
-        return repository.obtenerPorUid(uid)
+        return voluntarioRepository.obtenerPorUid(uid)
     }
 
     fun obtenerPorUid(uid: String) {
         viewModelScope.launch {
-            _voluntarioSeleccionado.value = repository.obtenerPorUid(uid)
+            _voluntarioSeleccionado.value = voluntarioRepository.obtenerPorUid(uid)
         }
     }
 
     suspend fun buscarYDescargarUsuario(uid: String): Voluntario? {
         // 1. Intentar local
-        val local = repository.obtenerPorUid(uid)
+        val local = voluntarioRepository.obtenerPorUid(uid)
         if (local != null) return local
 
         // 2. Intentar nube
-        return repository.buscarEnNube(uid)
+        return voluntarioRepository.buscarEnNube(uid)
     }
 
     suspend fun buscarPorEmail(email: String): Voluntario? {
-        return repository.obtenerPorEmail(email)
+        return voluntarioRepository.obtenerPorEmail(email)
     }
 
     fun eliminarVoluntario(
@@ -172,7 +209,7 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                repository.eliminarVoluntario(uid)
+                voluntarioRepository.eliminarVoluntario(uid)
                 _isLoading.value = false
                 onSuccess()
             } catch (e: Exception) {
@@ -298,11 +335,11 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     suspend fun existeDNI(dni: String): Boolean {
-        return repository.obtenerVoluntarios().first().any { it.cedula == dni }
+        return voluntarioRepository.obtenerVoluntarios().first().any { it.cedula == dni }
     }
 
     suspend fun existePasaporte(pasaporte: String): Boolean {
-        return repository.obtenerVoluntarios().first().any { it.pasaporte == pasaporte }
+        return voluntarioRepository.obtenerVoluntarios().first().any { it.pasaporte == pasaporte }
     }
 
     fun formatearPasaporte(input: String): String {

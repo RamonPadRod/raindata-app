@@ -9,25 +9,41 @@ import com.google.firebase.auth.FirebaseAuthException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val auth = FirebaseAuth.getInstance()
     private val context = application.applicationContext
 
     // ===== ENCRYPTED PREFERENCES PARA RECUÉRDAME =====
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+    private val masterKey by lazy {
+        try {
+            MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+        } catch (e: Exception) {
+            null
+        }
+    }
 
-    private val sharedPreferences = EncryptedSharedPreferences.create(
-        context,
-        "auth_prefs",
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private val sharedPreferences by lazy {
+        val key = masterKey ?: return@lazy null
+        try {
+            EncryptedSharedPreferences.create(
+                context,
+                "auth_prefs",
+                key,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            // Fallback a SharedPreferences normales si EncryptedSharedPreferences falla
+            context.getSharedPreferences("auth_prefs_fallback", android.content.Context.MODE_PRIVATE)
+        }
+    }
 
     private val db = hn.unah.raindata.data.database.AppDatabase.getDatabase(application)
     private val voluntarioRepository = hn.unah.raindata.data.repository.VoluntarioRepository(db.voluntarioDao())
@@ -92,17 +108,25 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
             } catch (e: FirebaseAuthException) {
                 _isLoading.value = false
-                val errorMessage = when (e.errorCode) {
-                    "ERROR_EMAIL_ALREADY_IN_USE" -> "Este correo electrónico ya está registrado"
-                    "ERROR_WEAK_PASSWORD" -> "La contraseña es muy débil"
-                    "ERROR_INVALID_EMAIL" -> "Formato de correo electrónico inválido"
-                    else -> "Error al registrar: ${e.message}"
+                val errorMessage = if (isConnectionError(e)) {
+                    "Sin conexión a internet. Verifique su red."
+                } else {
+                    when (e.errorCode) {
+                        "ERROR_EMAIL_ALREADY_IN_USE" -> "Este correo electrónico ya está registrado"
+                        "ERROR_WEAK_PASSWORD" -> "La contraseña es muy débil"
+                        "ERROR_INVALID_EMAIL" -> "Formato de correo electrónico inválido"
+                        else -> "Error al registrar: ${e.message}"
+                    }
                 }
                 _authState.value = AuthState.Error(errorMessage)
                 onError(errorMessage)
             } catch (e: Exception) {
                 _isLoading.value = false
-                val errorMessage = "Error inesperado: ${e.message}"
+                val errorMessage = if (isConnectionError(e)) {
+                    "Sin conexión a internet. Verifique su red."
+                } else {
+                    "Error inesperado: ${e.localizedMessage ?: "Error en el registro"}"
+                }
                 _authState.value = AuthState.Error(errorMessage)
                 onError(errorMessage)
             }
@@ -145,18 +169,33 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     onSuccess(uid)
 
                 } catch (e: Exception) {
-                    // SI FALLA POR RED, INTENTAR LOGIN OFFLINE
-                    val isNetworkError = e.message?.contains("network", ignoreCase = true) == true || 
-                                       e is com.google.firebase.FirebaseNetworkException ||
-                                       e is com.google.firebase.firestore.FirebaseFirestoreException
+                    // SI FALLA POR RED/CONEXIÓN, INTENTAR LOGIN OFFLINE
+                    // Cubre: FirebaseNetworkException, SSL handshake, Connection reset,
+                    // I/O errors, timeout, y cualquier fallo de conectividad
+                    val isNetworkError = isConnectionError(e)
 
                     if (isNetworkError) {
                         val (savedEmail, savedPass, isRemembered) = obtenerCredencialesGuardadas()
                         
                         if (isRemembered && email == savedEmail && password == savedPass) {
-                            // Credenciales coinciden localmente, buscar perfil en Room
-                            val voluntario = voluntarioRepository.obtenerPorEmail(email)
+                            // Credenciales coinciden localmente, buscar perfil en Room (hilo IO)
+                            val voluntario = withContext(Dispatchers.IO) {
+                                voluntarioRepository.obtenerPorEmail(email)
+                            }
                             if (voluntario != null) {
+                                // Intento de restaurar sesión Firebase Auth en background.
+                                // No bloqueamos el flujo offline — el usuario puede seguir trabajando.
+                                // Si tiene éxito → currentUser ya no será null al sincronizar.
+                                // Si falla (aún sin red) → DatoMeteorologicoViewModel detectará
+                                // currentUser=null al reconectar y volverá a intentarlo.
+                                viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    try {
+                                        auth.signInWithEmailAndPassword(email, password).await()
+                                        android.util.Log.d("AuthViewModel", "✅ Firebase Auth restaurado en background tras login offline")
+                                    } catch (ex: Exception) {
+                                        android.util.Log.w("AuthViewModel", "⚠️ Firebase Auth pendiente de restaurar (sin red aún): ${ex.message}")
+                                    }
+                                }
                                 _authState.value = AuthState.Success("Sesión iniciada (Modo Offline)")
                                 _isLoading.value = false
                                 onSuccess(voluntario.firebase_uid)
@@ -180,20 +219,28 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
             } catch (e: FirebaseAuthException) {
                 _isLoading.value = false
-                val errorMessage = when (e.errorCode) {
-                    "ERROR_INVALID_EMAIL" -> "Formato de correo electrónico inválido"
-                    "ERROR_WRONG_PASSWORD" -> "Contraseña incorrecta"
-                    "ERROR_USER_NOT_FOUND" -> "Este correo no está registrado en el sistema"
-                    "ERROR_USER_DISABLED" -> "Esta cuenta ha sido deshabilitada"
-                    "ERROR_TOO_MANY_REQUESTS" -> "Demasiados intentos fallidos. Intente más tarde"
-                    "ERROR_INVALID_CREDENTIAL" -> "Correo o contraseña incorrectos"
-                    else -> "Error al iniciar sesión. Verifica tus credenciales"
+                val errorMessage = if (isConnectionError(e)) {
+                    "Sin conexión a internet. Verifique su red."
+                } else {
+                    when (e.errorCode) {
+                        "ERROR_INVALID_EMAIL" -> "Formato de correo electrónico inválido"
+                        "ERROR_WRONG_PASSWORD" -> "Contraseña incorrecta"
+                        "ERROR_USER_NOT_FOUND" -> "Este correo no está registrado en el sistema"
+                        "ERROR_USER_DISABLED" -> "Esta cuenta ha sido deshabilitada"
+                        "ERROR_TOO_MANY_REQUESTS" -> "Demasiados intentos fallidos. Intente más tarde"
+                        "ERROR_INVALID_CREDENTIAL" -> "Correo o contraseña incorrectos"
+                        else -> "Error al iniciar sesión. Verifica tus credenciales"
+                    }
                 }
                 _authState.value = AuthState.Error(errorMessage)
                 onError(errorMessage)
             } catch (e: Exception) {
                 _isLoading.value = false
-                val errorMessage = "Error: ${e.message ?: "Verifique sus credenciales"}"
+                val errorMessage = if (isConnectionError(e)) {
+                    "Sin conexión a internet. Verifique su red."
+                } else {
+                    "Error al iniciar sesión: ${e.localizedMessage ?: "Verifique sus credenciales"}"
+                }
                 _authState.value = AuthState.Error(errorMessage)
                 onError(errorMessage)
             }
@@ -202,7 +249,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     // ===== MÉTODOS RECUÉRDAME =====
     private fun guardarCredenciales(email: String, pass: String) {
-        sharedPreferences.edit().apply {
+        sharedPreferences?.edit()?.apply {
             putString("remember_email", email)
             putString("remember_pass", pass)
             putBoolean("remember_me", true)
@@ -211,7 +258,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun borrarCredenciales() {
-        sharedPreferences.edit().apply {
+        sharedPreferences?.edit()?.apply {
             remove("remember_email")
             remove("remember_pass")
             putBoolean("remember_me", false)
@@ -220,9 +267,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun obtenerCredencialesGuardadas(): Triple<String, String, Boolean> {
-        val email = sharedPreferences.getString("remember_email", "") ?: ""
-        val pass = sharedPreferences.getString("remember_pass", "") ?: ""
-        val rememberMe = sharedPreferences.getBoolean("remember_me", false)
+        val prefs = sharedPreferences
+        val email = prefs?.getString("remember_email", "") ?: ""
+        val pass = prefs?.getString("remember_pass", "") ?: ""
+        val rememberMe = prefs?.getBoolean("remember_me", false) ?: false
         return Triple(email, pass, rememberMe)
     }
 
@@ -304,6 +352,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private fun isValidEmail(email: String): Boolean {
         val emailPattern = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$"
         return email.matches(emailPattern.toRegex())
+    }
+
+    /**
+     * Determina si una excepción es un error de conectividad/red.
+     * Cubre errores de Firebase, SSL, I/O, timeout, y otros fallos de conexión.
+     */
+    private fun isConnectionError(e: Exception): Boolean {
+        return hn.unah.raindata.data.utils.NetworkUtils.isConnectionError(e)
     }
 
     // Resetear estado

@@ -30,25 +30,23 @@ fun SyncStatusIcon(
 ) {
     when (status) {
         SyncStatus.PENDIENTE -> {
-            val infiniteTransition = rememberInfiniteTransition(label = "sync_animation")
-            val rotation by infiniteTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 360f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(2000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Restart
-                ),
-                label = "rotation"
-            )
-
-            Icon(
-                imageVector = Icons.Filled.Sync,
-                contentDescription = "Sincronizando...",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = modifier
-                    .size(20.dp)
-                    .rotate(rotation)
-            )
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                tooltip = {
+                    Text(
+                        text = "Pendiente de sincronizar (Guardado local)",
+                        modifier = Modifier.padding(8.dp)
+                    )
+                },
+                state = rememberTooltipState()
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.CloudOff,
+                    contentDescription = "Pendiente de sincronizar",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = modifier.size(20.dp)
+                )
+            }
         }
         SyncStatus.ENVIADO -> {
             Icon(

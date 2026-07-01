@@ -3,6 +3,7 @@ package hn.unah.raindata.data.database.entities
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.PropertyName
 import com.google.firebase.firestore.ServerTimestamp
+import com.google.firebase.firestore.Exclude
 import java.util.Date
 
 import androidx.room.Entity
@@ -13,7 +14,7 @@ import androidx.room.Ignore
 data class DatoMeteorologico(
     @PrimaryKey
     @DocumentId
-    var id: String = "",
+    var id: String = java.util.UUID.randomUUID().toString(),
 
     @PropertyName("voluntario_uid")
     var voluntario_uid: String = "",
@@ -57,10 +58,10 @@ data class DatoMeteorologico(
     @PropertyName("observaciones")
     var observaciones: String? = null,
 
-    // ===== SINCRONIZACIÓN OFFLINE =====
-    @PropertyName("syncStatus")
+    // ===== SINCRONIZACIÓN OFFLINE (excluidos de Firestore) =====
+    @get:Exclude
     var syncStatus: SyncStatus = SyncStatus.ENVIADO,
-    @PropertyName("fechaRegistroLocal")
+    @get:Exclude
     var fechaRegistroLocal: Long = System.currentTimeMillis(),
 
     @Ignore

@@ -3,6 +3,7 @@ package hn.unah.raindata.data.database.entities
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ServerTimestamp
+import com.google.firebase.firestore.Exclude
 import java.util.UUID
 
 import androidx.room.Entity
@@ -41,7 +42,9 @@ data class Pluviometro(
     var activo: Boolean = true,
 
     // ===== SINCRONIZACIÓN OFFLINE =====
+    @get:Exclude
     var syncStatus: SyncStatus = SyncStatus.ENVIADO,
+    @get:Exclude
     var fechaRegistroLocal: Long = System.currentTimeMillis(),
 
     // ===== TIMESTAMPS AUTOMÁTICOS =====
