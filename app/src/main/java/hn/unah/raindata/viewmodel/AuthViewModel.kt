@@ -18,32 +18,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val auth = FirebaseAuth.getInstance()
     private val context = application.applicationContext
 
-<<<<<<< Updated upstream
-    // ===== ENCRYPTED PREFERENCES PARA RECUÉRDAME =====
-    private val masterKey by lazy {
-        try {
-            MasterKey.Builder(context)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
-        } catch (e: Exception) {
-            null
-        }
-    }
-
-    private val sharedPreferences by lazy {
-        val key = masterKey ?: return@lazy null
-        try {
-            EncryptedSharedPreferences.create(
-                context,
-                "auth_prefs",
-                key,
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-            )
-        } catch (e: Exception) {
-            // Fallback a SharedPreferences normales si EncryptedSharedPreferences falla
-            context.getSharedPreferences("auth_prefs_fallback", android.content.Context.MODE_PRIVATE)
-=======
     // ===== PREFERENCES PARA RECORDAME (RESILIENTE CONTRA FALLOS DE KEYSTORE/CORRUPCION) =====
     private val sharedPreferences: android.content.SharedPreferences = inicializarPreferences(context)
 
@@ -81,7 +55,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     context.getSharedPreferences("auth_prefs_local", android.content.Context.MODE_PRIVATE)
                 }
             }
->>>>>>> Stashed changes
         }
     }
 
@@ -289,7 +262,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     // ===== MÉTODOS RECUÉRDAME =====
     private fun guardarCredenciales(email: String, pass: String) {
-        sharedPreferences?.edit()?.apply {
+        sharedPreferences.edit().apply {
             putString("remember_email", email)
             putString("remember_pass", pass)
             putBoolean("remember_me", true)
@@ -298,7 +271,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun borrarCredenciales() {
-        sharedPreferences?.edit()?.apply {
+        sharedPreferences.edit().apply {
             remove("remember_email")
             remove("remember_pass")
             putBoolean("remember_me", false)
@@ -308,9 +281,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     fun obtenerCredencialesGuardadas(): Triple<String, String, Boolean> {
         val prefs = sharedPreferences
-        val email = prefs?.getString("remember_email", "") ?: ""
-        val pass = prefs?.getString("remember_pass", "") ?: ""
-        val rememberMe = prefs?.getBoolean("remember_me", false) ?: false
+        val email = prefs.getString("remember_email", "") ?: ""
+        val pass = prefs.getString("remember_pass", "") ?: ""
+        val rememberMe = prefs.getBoolean("remember_me", false)
         return Triple(email, pass, rememberMe)
     }
 
@@ -390,7 +363,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     // VALIDACIÓN DE EMAIL
     private fun isValidEmail(email: String): Boolean {
-        val emailPattern = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$"
+        val emailPattern = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
         return email.matches(emailPattern.toRegex())
     }
 
