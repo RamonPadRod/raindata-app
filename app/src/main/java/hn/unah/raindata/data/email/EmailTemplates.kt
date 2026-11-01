@@ -74,7 +74,7 @@ object EmailTemplates {
                     <tr>
                         <td style="background-color: #f9f9f9; padding: 30px; text-align: center; border-radius: 0 0 16px 16px; border-top: 3px solid $COLOR_VERDE_CLARO;">
                             <p style="margin: 0 0 10px; color: $COLOR_VERDE_PRINCIPAL; font-weight: bold; font-size: 16px;">
-                                Mesa Agroclimática del Paraíso
+                                Mesa Agroclimática de El Paraíso
                             </p>
                             <p style="margin: 0 0 5px; color: $COLOR_GRIS_TEXTO; font-size: 14px;">
                                 Red Comunitaria de Observadores del Clima
@@ -112,21 +112,21 @@ object EmailTemplates {
             </p>
             
             <p style="margin: 0 0 20px; color: $COLOR_GRIS_TEXTO; font-size: 16px; line-height: 1.6;">
-                Nos alegra que formes parte de la <strong>Red Comunitaria de Observadores del Clima</strong> 
-                de la Mesa Agroclimática del Paraíso.
+                Nos alegra que forme parte de la <strong>Red Comunitaria de Observadores del Clima</strong> 
+                de la Mesa Agroclimática de El Paraíso.
             </p>
             
             <div style="background-color: #E8F5E9; padding: 20px; border-radius: 12px; border-left: 4px solid $COLOR_VERDE_PRINCIPAL; margin: 20px 0;">
                 <p style="margin: 0 0 10px; color: $COLOR_VERDE_PRINCIPAL; font-weight: bold; font-size: 18px;">
-                    ✅ Tu cuenta de VOLUNTARIO ha sido activada
+                    ✅ Su cuenta de VOLUNTARIO ha sido activada
                 </p>
                 <p style="margin: 0; color: $COLOR_GRIS_TEXTO; font-size: 14px;">
-                    Ya puedes iniciar sesión en la aplicación y comenzar a registrar datos meteorológicos.
+                    Ya puede iniciar sesión en la aplicación y comenzar a registrar datos meteorológicos.
                 </p>
             </div>
             
             <p style="margin: 20px 0 0; color: $COLOR_GRIS_TEXTO; font-size: 16px; line-height: 1.6;">
-                Gracias por tu compromiso con el monitoreo climático de nuestra comunidad. 🌧️
+                Gracias por su compromiso con el monitoreo climático de nuestra comunidad. 🌧️
             </p>
         """
 
@@ -145,21 +145,21 @@ object EmailTemplates {
             </p>
             
             <p style="margin: 0 0 20px; color: $COLOR_GRIS_TEXTO; font-size: 16px; line-height: 1.6;">
-                Nos alegra que formes parte de la <strong>Red Comunitaria de Observadores del Clima</strong> 
-                de la Mesa Agroclimática del Paraíso.
+                Nos alegra que forme parte de la <strong>Red Comunitaria de Observadores del Clima</strong> 
+                de la Mesa Agroclimática de El Paraíso.
             </p>
             
             <div style="background-color: #E3F2FD; padding: 20px; border-radius: 12px; border-left: 4px solid $COLOR_AZUL_CIELO; margin: 20px 0;">
                 <p style="margin: 0 0 10px; color: #0277BD; font-weight: bold; font-size: 18px;">
-                    ✅ Tu cuenta de OBSERVADOR ha sido activada
+                    ✅ Su cuenta de OBSERVADOR ha sido activada
                 </p>
                 <p style="margin: 0; color: $COLOR_GRIS_TEXTO; font-size: 14px;">
-                    Ya puedes iniciar sesión en la aplicación para consultar los datos meteorológicos registrados.
+                    Ya puede iniciar sesión en la aplicación para consultar los datos meteorológicos registrados.
                 </p>
             </div>
             
             <p style="margin: 20px 0 0; color: $COLOR_GRIS_TEXTO; font-size: 16px; line-height: 1.6;">
-                Gracias por tu interés en el monitoreo climático de nuestra comunidad. 📊
+                Gracias por su interés en el monitoreo climático de nuestra comunidad. 📊
             </p>
         """
 
@@ -179,15 +179,15 @@ object EmailTemplates {
             
             <div style="background-color: #FFF3E0; padding: 20px; border-radius: 12px; border-left: 4px solid $COLOR_AMARILLO; margin: 20px 0;">
                 <p style="margin: 0 0 10px; color: #F57C00; font-weight: bold; font-size: 18px;">
-                    ✅ Tu solicitud de ADMINISTRADOR ha sido aprobada
+                    ✅ Su solicitud de ADMINISTRADOR ha sido aprobada
                 </p>
                 <p style="margin: 0; color: $COLOR_GRIS_TEXTO; font-size: 14px;">
-                    Ya puedes iniciar sesión con permisos completos de administrador.
+                    Ya puede iniciar sesión con permisos completos de administrador.
                 </p>
             </div>
             
             <p style="margin: 20px 0 0; color: $COLOR_GRIS_TEXTO; font-size: 16px; line-height: 1.6;">
-                Gracias por tu compromiso con la Mesa Agroclimática del Paraíso. 🌟
+                Gracias por su compromiso con la Mesa Agroclimática de El Paraíso. 🌟
             </p>
         """
 

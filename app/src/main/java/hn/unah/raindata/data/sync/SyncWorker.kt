@@ -4,8 +4,10 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import hn.unah.raindata.data.database.AppDatabase
 import hn.unah.raindata.data.database.entities.SyncStatus
+import hn.unah.raindata.data.database.entities.Voluntario
 import kotlinx.coroutines.tasks.await
 
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -30,6 +32,19 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
         
         for (item in pendientes) {
             try {
+                // Verificar en el servidor antes de sobrescribir para proteger aprobaciones
+                val docActual = collection.document(item.firebase_uid).get(Source.SERVER).await()
+                if (docActual.exists()) {
+                    val estadoRemoto = docActual.getString("estado_aprobacion")
+                    if (estadoRemoto == "Aprobado" && item.estado_aprobacion == "Pendiente") {
+                        // El servidor ya aprobó este usuario. Actualizar la base local y no sobrescribir la nube.
+                        val voluntarioRemoto = docActual.toObject(Voluntario::class.java)
+                        if (voluntarioRemoto != null) {
+                            db.voluntarioDao().insertar(voluntarioRemoto.copy(syncStatus = SyncStatus.ENVIADO))
+                        }
+                        continue
+                    }
+                }
                 collection.document(item.firebase_uid).set(item).await()
                 db.voluntarioDao().actualizarSyncStatus(item.firebase_uid, SyncStatus.ENVIADO)
             } catch (e: Exception) {

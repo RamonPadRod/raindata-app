@@ -8,7 +8,7 @@ object EmailConfig {
     // ✅ TUS DATOS REALES
     const val EMAIL_FROM = "mesaagroclimaticaelparaisohn@gmail.com"
     const val EMAIL_PASSWORD = "xyuf vagc vote jnqe" // ← Tu contraseña de aplicación
-    const val EMAIL_FROM_NAME = "Mesa Agroclimática del Paraíso"
+    const val EMAIL_FROM_NAME = "Mesa Agroclimática de El Paraíso"
 
     // Información de la app
     const val APP_NAME = "REVOCLIMAP"

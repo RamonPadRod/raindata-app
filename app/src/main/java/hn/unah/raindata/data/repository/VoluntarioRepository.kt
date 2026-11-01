@@ -6,6 +6,7 @@ import hn.unah.raindata.data.database.entities.Voluntario
 import hn.unah.raindata.data.database.entities.SyncStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 
@@ -24,6 +25,15 @@ class VoluntarioRepository(private val dao: VoluntarioDao) {
 
     suspend fun obtenerPorEmail(email: String): Voluntario? {
         return dao.obtenerPorEmail(email)
+    }
+
+    suspend fun hayUsuariosEnFirestore(): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val snapshot = collection.limit(1).get(Source.SERVER).await()
+            Result.success(!snapshot.isEmpty)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun guardarVoluntario(voluntario: Voluntario) = withContext(Dispatchers.IO) {
@@ -62,13 +72,14 @@ class VoluntarioRepository(private val dao: VoluntarioDao) {
         }
     }
 
-    suspend fun buscarEnNube(uid: String): Voluntario? = withContext(Dispatchers.IO) {
+    suspend fun buscarEnNube(uid: String, forzarServidor: Boolean = false): Voluntario? = withContext(Dispatchers.IO) {
         try {
-            val doc = collection.document(uid).get().await()
+            val source = if (forzarServidor) Source.SERVER else Source.DEFAULT
+            val doc = collection.document(uid).get(source).await()
             if (doc.exists()) {
                 val voluntario = doc.toObject(Voluntario::class.java)
                 voluntario?.let {
-                    // Guardar localmente para futuras sesiones offline
+                    // Guardar localmente para mantener coherencia en Room
                     val local = it.copy(syncStatus = SyncStatus.ENVIADO)
                     dao.insertar(local)
                 }
@@ -105,6 +116,7 @@ class VoluntarioRepository(private val dao: VoluntarioDao) {
             // Ignorar errores de red
         }
     }
+<<<<<<< Updated upstream
 
     suspend fun sincronizarPendientesLocal() {
         if (!hn.unah.raindata.data.utils.NetworkMonitor.isOnline.value) return
@@ -128,3 +140,6 @@ class VoluntarioRepository(private val dao: VoluntarioDao) {
         }
     }
 }
+=======
+}
+>>>>>>> Stashed changes

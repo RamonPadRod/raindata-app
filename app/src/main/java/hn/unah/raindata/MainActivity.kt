@@ -64,15 +64,23 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val locale = java.util.Locale("es", "HN")
-        java.util.Locale.setDefault(locale)
-        val config = resources.configuration
-        config.setLocale(locale)
-        @Suppress("DEPRECATION")
-        resources.updateConfiguration(config, resources.displayMetrics)
+        try {
+            val locale = java.util.Locale("es", "HN")
+            java.util.Locale.setDefault(locale)
+            val config = resources.configuration
+            config.setLocale(locale)
+            @Suppress("DEPRECATION")
+            resources.updateConfiguration(config, resources.displayMetrics)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Aviso: Error configurando locale: ${e.message}")
+        }
 
-        // ===== CONFIGURAR SINCRONIZACIÓN AUTOMÁTICA =====
-        configurarSincronizacion()
+        // ===== CONFIGURAR SINCRONIZACION AUTOMATICA =====
+        try {
+            configurarSincronizacion()
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Aviso: Error configurando sincronizacion: ${e.message}")
+        }
 
         // NetworkMonitor ya fue inicializado en RainDataApp.onCreate().
         // No llamar init() aquí de nuevo: la guardia en NetworkMonitor lo ignoraría,
@@ -215,7 +223,9 @@ class MainActivity : ComponentActivity() {
                             authViewModel = authViewModel,
                             onLoginSuccess = { firebaseUid ->
                                 scope.launch {
-                                    val voluntario = voluntarioViewModel.buscarYDescargarUsuario(firebaseUid)
+                                    // Consultar al servidor de Firestore (Source.SERVER) para tener el estado real
+                                    val voluntario = voluntarioViewModel.verificarEstadoAprobacionServidor(firebaseUid)
+                                        ?: voluntarioViewModel.buscarYDescargarUsuario(firebaseUid)
 
                                     if (voluntario != null) {
                                         when (voluntario.estado_aprobacion) {
@@ -230,9 +240,10 @@ class MainActivity : ComponentActivity() {
                                             }
                                             "Rechazado" -> {
                                                 authViewModel.cerrarSesion()
+                                                UserSession.logout()
                                                 Toast.makeText(
                                                     this@MainActivity,
-                                                    "Tu solicitud fue rechazada. Contacta al administrador",
+                                                    "Su solicitud fue rechazada. Contacte al administrador.",
                                                     Toast.LENGTH_LONG
                                                 ).show()
                                             }
@@ -276,7 +287,44 @@ class MainActivity : ComponentActivity() {
                             onCerrarSesion = {
                                 authViewModel.cerrarSesion()
                                 UserSession.logout()
+                                emailRegistrado = ""
+                                firebaseUidRegistrado = ""
                                 pantallaActual = Pantalla.LOGIN
+                            },
+                            onVerificarEstado = {
+                                scope.launch {
+                                    val currentUid = UserSession.getCurrentUserUid() ?: authViewModel.getCurrentUserId()
+                                    val currentUser = UserSession.getCurrentUser()
+
+                                    // Guard estricto: la comprobación automática y el aviso SOLO deben procesarse
+                                    // cuando la sesión actual pertenece a un Administrador en estado "Pendiente".
+                                    // Nunca para Observadores, Voluntarios ni Administradores ya aprobados.
+                                    val esAdminPendiente = (currentUser != null && currentUser.tipo_usuario == "Administrador" && currentUser.estado_aprobacion.equals("Pendiente", ignoreCase = true)) ||
+                                            (currentUser == null && currentUid != null)
+
+                                    if (!esAdminPendiente) {
+                                        return@launch
+                                    }
+
+                                    if (currentUid != null) {
+                                        // Consultar directamente al servidor de Firestore (Source.SERVER) para el uid de la sesión
+                                        val voluntario = voluntarioViewModel.verificarEstadoAprobacionServidor(currentUid)
+                                        if (voluntario != null && voluntario.firebase_uid == currentUid) {
+                                            if (voluntario.tipo_usuario == "Administrador") {
+                                                if (voluntario.estado_aprobacion.equals("Aprobado", ignoreCase = true)) {
+                                                    UserSession.login(voluntario)
+                                                    Toast.makeText(this@MainActivity, "¡Su solicitud ha sido aprobada!", Toast.LENGTH_LONG).show()
+                                                    pantallaActual = Pantalla.HOME
+                                                } else if (voluntario.estado_aprobacion.equals("Rechazado", ignoreCase = true)) {
+                                                    Toast.makeText(this@MainActivity, "Su solicitud fue rechazada. Contacte al administrador.", Toast.LENGTH_LONG).show()
+                                                    authViewModel.cerrarSesion()
+                                                    UserSession.logout()
+                                                    pantallaActual = Pantalla.LOGIN
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             },
                             onCancelarSolicitud = {
                                 scope.launch {
@@ -452,9 +500,9 @@ class MainActivity : ComponentActivity() {
                                         viewModel = voluntarioViewModel,
                                         emailPrecargado = emailRegistrado,
                                         firebaseUid = firebaseUidRegistrado,
-                                        onVoluntarioGuardado = { tipoUsuario ->
-                                            if (tipoUsuario.isEmpty()) {
-                                                // ✅ CASO CANCELAR: Solo volver atrás y resetear navegación
+                                        onVoluntarioGuardado = { voluntarioGuardado ->
+                                            if (voluntarioGuardado == null) {
+                                                // Caso cancelar: volver atras y resetear navegacion
                                                 voluntarioViewModel.resetSubPantalla()
                                                 if (UserSession.isLoggedIn()) {
                                                     pantallaActual = Pantalla.LISTA_VOLUNTARIOS
@@ -464,47 +512,31 @@ class MainActivity : ComponentActivity() {
                                                 return@RegistroVoluntarioScreen
                                             }
 
-                                            // ✅ CASO GUARDAR: Flujo normal de espera y login
-                                            scope.launch {
-                                                delay(1500)
-                                                val voluntario = voluntarioViewModel.buscarPorFirebaseUid(firebaseUidRegistrado)
+                                            // Si ya habia un usuario logueado (ej: Admin creando voluntario desde lista)
+                                            if (UserSession.isLoggedIn() && UserSession.isAdmin() && voluntarioGuardado.firebase_uid != UserSession.getCurrentUserUid()) {
+                                                voluntarioViewModel.limpiarDraft()
+                                                voluntarioViewModel.resetSubPantalla()
+                                                pantallaActual = Pantalla.LISTA_VOLUNTARIOS
+                                                return@RegistroVoluntarioScreen
+                                            }
 
-                                                if (voluntario != null) {
-                                                    when (voluntario.estado_aprobacion) {
-                                                        "Aprobado" -> {
-                                                            UserSession.login(voluntario)
-                                                            pantallaActual = Pantalla.HOME
-                                                        }
-                                                        "Pendiente" -> {
-                                                            UserSession.login(voluntario)
-                                                            pantallaActual = Pantalla.SOLICITUD_PENDIENTE
-                                                        }
-                                                        "Rechazado" -> {
-                                                            Toast.makeText(
-                                                                this@MainActivity,
-                                                                "Tu solicitud fue rechazada. Contacta al administrador.",
-                                                                Toast.LENGTH_LONG
-                                                            ).show()
-                                                            authViewModel.cerrarSesion()
-                                                            pantallaActual = Pantalla.LOGIN
-                                                        }
-                                                        else -> {
-                                                            Toast.makeText(
-                                                                this@MainActivity,
-                                                                "Error en el estado de aprobación. Intenta nuevamente.",
-                                                                Toast.LENGTH_LONG
-                                                            ).show()
-                                                            authViewModel.cerrarSesion()
-                                                            pantallaActual = Pantalla.LOGIN
-                                                        }
-                                                    }
-                                                } else {
-                                                    Toast.makeText(
-                                                        this@MainActivity,
-                                                        "Error al cargar usuario. Intenta iniciar sesión manualmente.",
-                                                        Toast.LENGTH_LONG
-                                                    ).show()
+                                            // Nuevo usuario registrandose: establecer sesion y navegar directo segun estado
+                                            UserSession.login(voluntarioGuardado)
+                                            voluntarioViewModel.limpiarDraft()
+                                            voluntarioViewModel.resetSubPantalla()
+                                            emailRegistrado = ""
+                                            firebaseUidRegistrado = ""
+
+                                            when (voluntarioGuardado.estado_aprobacion) {
+                                                "Aprobado" -> {
+                                                    pantallaActual = Pantalla.HOME
+                                                }
+                                                "Pendiente" -> {
+                                                    pantallaActual = Pantalla.SOLICITUD_PENDIENTE
+                                                }
+                                                else -> {
                                                     authViewModel.cerrarSesion()
+                                                    UserSession.logout()
                                                     pantallaActual = Pantalla.LOGIN
                                                 }
                                             }

@@ -51,7 +51,7 @@ fun LoginScreen(
     onNavigateToRecuperarPassword: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val sharedPrefs = remember { context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE) }
+    val sharedPrefs = remember { context.getSharedPreferences("login_ui_prefs", Context.MODE_PRIVATE) }
 
     // 🔧 Estados
     var email by remember { mutableStateOf("") }
@@ -290,31 +290,17 @@ fun InstitutionalHeaderLogin(
     isTablet: Boolean
 ) {
     // Logos optimizados: 60dp móvil, 100dp tablet
-    val logoSize = if (isTablet) 100.dp else 60.dp
+    val logoSize = if (isTablet) 190.dp else 150.dp
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Logos institucionales
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            LogoImage(
-                drawableRes = hn.unah.raindata.R.drawable.logo_unah,
-                contentDescription = "Universidad Nacional Autónoma de Honduras",
-                size = logoSize
-            )
-
-            Spacer(modifier = Modifier.width(24.dp))
-
-            LogoImage(
-                drawableRes = hn.unah.raindata.R.drawable.logo_mesa_agroclimatica,
-                contentDescription = "Mesa Agroclimática del Paraíso",
-                size = logoSize
-            )
-        }
+        // Logo institucional único REVOCLIMAP
+        LogoImage(
+            drawableRes = hn.unah.raindata.R.drawable.logo_mesa_transparente,
+            contentDescription = "Logo REVOCLIMAP",
+            size = logoSize
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -331,7 +317,7 @@ fun InstitutionalHeaderLogin(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "Red de voluntarios climáticos del Paraíso",
+            text = "Red de voluntarios climáticos de El Paraíso",
             fontSize = 13.sp,
             color = RainDataColors.TextoPrincipal,
             fontWeight = FontWeight.Medium,
@@ -420,7 +406,7 @@ fun LoginFormPanel(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Accede a la plataforma de monitoreo",
+                        text = "Acceda a la plataforma de monitoreo",
                         fontSize = 13.sp,
                         color = RainDataColors.TextoSecundario,
                         fontWeight = FontWeight.Medium,

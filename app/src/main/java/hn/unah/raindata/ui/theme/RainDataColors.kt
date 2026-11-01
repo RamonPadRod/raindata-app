@@ -5,8 +5,8 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * REVOCLIMAP - Sistema de Colores Institucional
- * Paleta de colores para la Red de Voluntarios Climáticos del Paraíso
- * Basado en la identidad visual de UNAH y Mesa Agroclimática
+ * Paleta de colores para la Red de Voluntarios Climáticos de El Paraíso
+ * Basado en la identidad visual de la Mesa Agroclimática de El Paraíso
  */
 object RainDataColors {
     // 🌳 COLORES PRINCIPALES - Verde (Mesa Agroclimática)

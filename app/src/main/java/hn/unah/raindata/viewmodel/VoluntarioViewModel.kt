@@ -142,6 +142,7 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+<<<<<<< Updated upstream
     fun cargarPluviometros() {
         viewModelScope.launch {
             pluviometroRepository.obtenerPluviometros().collect { list ->
@@ -158,7 +159,21 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
             return false
         }
         return voluntarioRepository.esPrimerUsuarioEnNube()
+=======
+
+    // ===== VERIFICACION PRIMER USUARIO EN FIRESTORE =====
+    enum class PrimerUsuarioEstado { CARGANDO, ES_PRIMERO, NO_ES_PRIMERO, ERROR_RED }
+
+    suspend fun verificarPrimerUsuario(): PrimerUsuarioEstado {
+        val result = repository.hayUsuariosEnFirestore()
+        return when {
+            result.isFailure -> PrimerUsuarioEstado.ERROR_RED
+            result.getOrDefault(false) -> PrimerUsuarioEstado.NO_ES_PRIMERO
+            else -> PrimerUsuarioEstado.ES_PRIMERO
+        }
+>>>>>>> Stashed changes
     }
+
 
     fun guardarVoluntario(
         voluntario: Voluntario,
@@ -195,6 +210,18 @@ class VoluntarioViewModel(application: Application) : AndroidViewModel(applicati
 
         // 2. Intentar nube
         return voluntarioRepository.buscarEnNube(uid)
+    }
+
+    /**
+     * Consulta el estado más reciente directamente desde el servidor de Firestore (Source.SERVER).
+     * Si se obtiene respuesta, actualiza la base local Room para mantener coherencia.
+     */
+    suspend fun verificarEstadoAprobacionServidor(uid: String): Voluntario? {
+        val remoto = repository.buscarEnNube(uid, forzarServidor = true)
+        if (remoto != null) {
+            return remoto
+        }
+        return repository.obtenerPorUid(uid)
     }
 
     suspend fun buscarPorEmail(email: String): Voluntario? {

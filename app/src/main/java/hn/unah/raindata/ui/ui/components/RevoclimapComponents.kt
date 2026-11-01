@@ -44,34 +44,18 @@ fun InstitutionalHeader(
 ) {
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
-    val logoSize = if (isTablet) 80.dp else 60.dp
+    val logoSize = if (isTablet) 190.dp else 150.dp
 
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Logos institucionales
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Logo UNAH
-            LogoImage(
-                drawableRes = hn.unah.raindata.R.drawable.logo_unah,
-                contentDescription = "Universidad Nacional Autónoma de Honduras",
-                size = logoSize
-            )
-
-            Spacer(modifier = Modifier.width(24.dp))
-
-            // Logo Mesa Agroclimática
-            LogoImage(
-                drawableRes = hn.unah.raindata.R.drawable.logo_mesa_agroclimatica,
-                contentDescription = "Mesa Agroclimática del Paraíso",
-                size = logoSize
-            )
-        }
+        // Logo institucional único REVOCLIMAP
+        LogoImage(
+            drawableRes = hn.unah.raindata.R.drawable.logo_mesa_transparente,
+            contentDescription = "Logo REVOCLIMAP",
+            size = logoSize
+        )
 
         if (showAppName) {
             Spacer(modifier = Modifier.height(20.dp))
@@ -88,7 +72,7 @@ fun InstitutionalHeader(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "Red de voluntarios climáticos del Paraíso",
+                text = "Red de voluntarios climáticos de El Paraíso",
                 fontSize = (13 * appNameSize).sp,
                 color = RainDataColors.TextoSobreFondo.copy(alpha = 0.85f),
                 fontWeight = FontWeight.Medium,

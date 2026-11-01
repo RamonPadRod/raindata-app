@@ -18,6 +18,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val auth = FirebaseAuth.getInstance()
     private val context = application.applicationContext
 
+<<<<<<< Updated upstream
     // ===== ENCRYPTED PREFERENCES PARA RECUÉRDAME =====
     private val masterKey by lazy {
         try {
@@ -42,6 +43,45 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Exception) {
             // Fallback a SharedPreferences normales si EncryptedSharedPreferences falla
             context.getSharedPreferences("auth_prefs_fallback", android.content.Context.MODE_PRIVATE)
+=======
+    // ===== PREFERENCES PARA RECORDAME (RESILIENTE CONTRA FALLOS DE KEYSTORE/CORRUPCION) =====
+    private val sharedPreferences: android.content.SharedPreferences = inicializarPreferences(context)
+
+    companion object {
+        private const val PREFS_FILE = "secure_auth_prefs"
+
+        private fun inicializarPreferences(context: android.content.Context): android.content.SharedPreferences {
+            return try {
+                val masterKey = MasterKey.Builder(context)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
+                EncryptedSharedPreferences.create(
+                    context,
+                    PREFS_FILE,
+                    masterKey,
+                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("AuthViewModel", "Aviso: Error con EncryptedSharedPreferences (${e.message}), recuperando archivo")
+                try {
+                    context.deleteSharedPreferences(PREFS_FILE)
+                    val masterKey = MasterKey.Builder(context)
+                        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                        .build()
+                    EncryptedSharedPreferences.create(
+                        context,
+                        PREFS_FILE,
+                        masterKey,
+                        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+                    )
+                } catch (e2: Exception) {
+                    android.util.Log.e("AuthViewModel", "Aviso: Usando fallback SharedPreferences estandar (${e2.message})")
+                    context.getSharedPreferences("auth_prefs_local", android.content.Context.MODE_PRIVATE)
+                }
+            }
+>>>>>>> Stashed changes
         }
     }
 

@@ -54,9 +54,9 @@ object EmailService {
 
             val session = createEmailSession()
             val message = MimeMessage(session).apply {
-                setFrom(InternetAddress(EmailConfig.EMAIL_FROM, EmailConfig.EMAIL_FROM_NAME))
+                setFrom(InternetAddress(EmailConfig.EMAIL_FROM, EmailConfig.EMAIL_FROM_NAME, "UTF-8"))
                 setRecipients(Message.RecipientType.TO, InternetAddress.parse(destinatario))
-                subject = asunto
+                setSubject(asunto, "UTF-8")
                 setContent(contenidoHTML, "text/html; charset=utf-8")
             }
 

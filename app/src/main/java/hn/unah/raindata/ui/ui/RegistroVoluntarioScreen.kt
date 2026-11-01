@@ -5,6 +5,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +26,10 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import androidx.compose.ui.text.font.FontWeight
 import java.util.*
+import hn.unah.raindata.data.email.EmailService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 // ✅ VISUAL TRANSFORMATION PARA DNI
 class DniVisualTransformation : VisualTransformation {
@@ -90,11 +97,13 @@ fun RegistroVoluntarioScreen(
     viewModel: VoluntarioViewModel = viewModel(),
     emailPrecargado: String = "",
     firebaseUid: String = "",
-    onVoluntarioGuardado: (String) -> Unit = {},
+    onVoluntarioGuardado: (Voluntario?) -> Unit = {},
     soloAdministrador: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var isGuardando by remember { mutableStateOf(false) }
 
     // ✅ PERSISTENCIA: Usar estados del ViewModel en lugar de locales
     val tipoDocumento by viewModel.tipoDocumentoDraft.collectAsState()
@@ -115,23 +124,41 @@ fun RegistroVoluntarioScreen(
 
     var expandedDepartamento by remember { mutableStateOf(false) }
     var expandedMunicipio by remember { mutableStateOf(false) }
+    var primerUsuarioEstado by remember { mutableStateOf(VoluntarioViewModel.PrimerUsuarioEstado.CARGANDO) }
     var esPrimerUsuario by remember { mutableStateOf(false) }
     var checkingPrimerUsuario by remember { mutableStateOf(true) }
 
-    // ✅ VERIFICAR SI ES EL PRIMER USUARIO AL INICIAR
+    // Verificar si es el primer usuario consultando Firestore directamente
     LaunchedEffect(Unit) {
-        // Pre-cargar correo si viene de autenticación y el draft está vacío
+        // Pre-cargar correo si viene de autenticacion y el draft esta vacio
         if (emailPrecargado.isNotEmpty() && correo.isEmpty()) {
             viewModel.setCorreoDraft(emailPrecargado)
         }
 
-        esPrimerUsuario = viewModel.esPrimerUsuario()
+        primerUsuarioEstado = viewModel.verificarPrimerUsuario()
 
-        if (esPrimerUsuario && tipoUsuario.isEmpty()) {
-            viewModel.setTipoUsuarioDraft("Administrador")
+        when (primerUsuarioEstado) {
+            VoluntarioViewModel.PrimerUsuarioEstado.ES_PRIMERO -> {
+                esPrimerUsuario = true
+                if (tipoUsuario.isEmpty()) {
+                    viewModel.setTipoUsuarioDraft("Administrador")
+                }
+            }
+            VoluntarioViewModel.PrimerUsuarioEstado.NO_ES_PRIMERO -> {
+                esPrimerUsuario = false
+            }
+            VoluntarioViewModel.PrimerUsuarioEstado.ERROR_RED -> {
+                snackbarHostState.showSnackbar(
+                    "No pudimos verificar los usuarios registrados. Revise su conexion e intente de nuevo."
+                )
+                // Mantener checkingPrimerUsuario = true para bloquear el formulario
+            }
+            else -> { /* CARGANDO: no hacer nada */ }
         }
 
-        checkingPrimerUsuario = false
+        if (primerUsuarioEstado != VoluntarioViewModel.PrimerUsuarioEstado.ERROR_RED) {
+            checkingPrimerUsuario = false
+        }
     }
 
     var expandedTipoUsuario by remember { mutableStateOf(false) }
@@ -266,23 +293,24 @@ fun RegistroVoluntarioScreen(
             direccion.isBlank() ||         // ← NUEVO (asegurar dirección)
             departamento.isBlank() ||      // ← NUEVO
             municipio.isBlank() ||         // ← NUEVO
-            aldea.isBlank()                // ← NUEVO
-
+            aldea.isBlank() ||                // Bloquear mientras verifica o si hay error de red
+            checkingPrimerUsuario ||           // Bloquear mientras se verifica primer usuario
+            isGuardando                        // Bloquear mientras se guarda el registro
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        Column(
+) { padding ->
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(
-                text = if (soloAdministrador) "Registro de administrador" else "Registro de voluntario",
-                style = MaterialTheme.typography.headlineMedium
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
 
             // Información Personal
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -1051,36 +1079,74 @@ fun RegistroVoluntarioScreen(
                                 fecha_nacimiento = fechaNacimiento,
                                 genero = genero,
                                 tipo_usuario = tipoUsuario,
-                                estado_aprobacion = if (tipoUsuario == "Administrador") "Pendiente" else "Aprobado",
+                                estado_aprobacion = if (tipoUsuario == "Administrador" && !esPrimerUsuario) "Pendiente" else "Aprobado",
                                 observaciones = observaciones.ifBlank { null }
                             )
+
+                            isGuardando = true
 
                             viewModel.guardarVoluntario(
                                 voluntario = voluntario,
                                 onSuccess = {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("✅ Voluntario guardado exitosamente")
+                                    val emailDestinatario = correo.trim()
+                                    val nombreDestinatario = nombre.trim()
+                                    val tipoEmail = when (tipoUsuario) {
+                                        "Voluntario" -> EmailService.TipoEmail.BIENVENIDA_VOLUNTARIO
+                                        "Observador" -> EmailService.TipoEmail.BIENVENIDA_OBSERVADOR
+                                        else -> null
                                     }
-                                    viewModel.limpiarDraft()
-                                    onVoluntarioGuardado(tipoUsuario)
+
+                                    if (tipoEmail != null && emailDestinatario.isNotBlank()) {
+                                        val appContext = context.applicationContext
+                                        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                                            var envioExitoso = false
+                                            try {
+                                                val resultado = withTimeoutOrNull(5000L) {
+                                                    when (tipoEmail) {
+                                                        EmailService.TipoEmail.BIENVENIDA_VOLUNTARIO ->
+                                                            EmailService.enviarEmailBienvenidaVoluntario(emailDestinatario, nombreDestinatario)
+                                                        EmailService.TipoEmail.BIENVENIDA_OBSERVADOR ->
+                                                            EmailService.enviarEmailBienvenidaObservador(emailDestinatario, nombreDestinatario)
+                                                        else -> Result.success(Unit)
+                                                    }
+                                                }
+                                                envioExitoso = resultado?.isSuccess == true
+                                            } catch (e: Exception) {
+                                                envioExitoso = false
+                                            }
+                                            withContext(Dispatchers.Main) {
+                                                if (envioExitoso) {
+                                                    android.widget.Toast.makeText(appContext, "Usuario registrado exitosamente. Se ha enviado un correo de bienvenida.", android.widget.Toast.LENGTH_LONG).show()
+                                                } else {
+                                                    android.widget.Toast.makeText(appContext, "Su cuenta fue creada correctamente. Sin embargo, no pudimos enviar el correo de confirmacion por un problema de conexion.", android.widget.Toast.LENGTH_LONG).show()
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        android.widget.Toast.makeText(context, "Usuario registrado exitosamente.", android.widget.Toast.LENGTH_LONG).show()
+                                    }
+
+                                    onVoluntarioGuardado(voluntario)
                                 },
                                 onError = { errorMsg ->
+                                    isGuardando = false
                                     scope.launch {
-                                        snackbarHostState.showSnackbar("❌ Error: $errorMsg")
+                                        snackbarHostState.showSnackbar("No se pudo crear la cuenta: $errorMsg")
                                     }
                                 }
                             )
                         }
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = !hayErrores
+                    enabled = !hayErrores && !isGuardando
                 ) {
                     Text("Guardar")
                 }
 
                 OutlinedButton(
                     onClick = { viewModel.limpiarDraft() },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    enabled = !isGuardando
                 ) {
                     Text("Limpiar")
                 }
@@ -1088,13 +1154,13 @@ fun RegistroVoluntarioScreen(
                 OutlinedButton(
                     onClick = {
                         viewModel.limpiarDraft()
-                        onVoluntarioGuardado("")
+                        onVoluntarioGuardado(null)
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    enabled = !isGuardando
                 ) {
                     Text("Cancelar")
                 }
-            }
 
             // Resumen de errores
             val erroresVisibles = listOfNotNull(
@@ -1138,7 +1204,40 @@ fun RegistroVoluntarioScreen(
                     }
                 }
             }
+
+            if (isGuardando) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f))
+                        .clickable(enabled = false) {},
+                    contentAlignment = Alignment.Center
+                ) {
+                    Card(
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Guardando registro...",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
         }
+    }
     }
 
     // ✅ DATE PICKER DIALOG
@@ -1174,4 +1273,5 @@ fun RegistroVoluntarioScreen(
             DatePicker(state = datePickerState)
         }
     }
+}
 }

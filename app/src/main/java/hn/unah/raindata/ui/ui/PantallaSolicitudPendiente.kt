@@ -2,9 +2,11 @@ package hn.unah.raindata.ui.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -13,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -26,7 +29,8 @@ fun PantallaSolicitudPendiente(
     nombreUsuario: String = "Usuario",
     emailUsuario: String = "",
     onCerrarSesion: () -> Unit = {},
-    onCancelarSolicitud: () -> Unit = {}
+    onCancelarSolicitud: () -> Unit = {},
+    onVerificarEstado: () -> Unit = {}
 ) {
     var showCancelarDialog by remember { mutableStateOf(false) }
 
@@ -47,6 +51,14 @@ fun PantallaSolicitudPendiente(
     LaunchedEffect(Unit) {
         delay(100)
         visible = true
+    }
+
+    // Comprobación periódica automática cada 15 segundos en segundo plano
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(15000L)
+            onVerificarEstado()
+        }
     }
 
     Scaffold { paddingValues ->
@@ -155,7 +167,7 @@ fun PantallaSolicitudPendiente(
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         Text(
-                                            text = "Tu solicitud de Administrador está siendo revisada por nuestro equipo.",
+                                            text = "Su cuenta está pendiente de aprobación por un administrador.",
                                             fontSize = 15.sp,
                                             color = RainDataColors.VerdeSecundario,
                                             textAlign = TextAlign.Center,
@@ -165,7 +177,7 @@ fun PantallaSolicitudPendiente(
                                         Spacer(modifier = Modifier.height(10.dp))
 
                                         Text(
-                                            text = "Te notificaremos cuando sea aprobada o rechazada.",
+                                            text = "Le notificaremos cuando su solicitud sea procesada.",
                                             fontSize = 14.sp,
                                             color = RainDataColors.VerdeSecundario,
                                             textAlign = TextAlign.Center,
@@ -219,14 +231,14 @@ fun PantallaSolicitudPendiente(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
                                         Text(
-                                            text = "¿Qué puedo hacer mientras espero?",
+                                            text = "¿Qué puede hacer mientras espera?",
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = RainDataColors.VerdePrincipal
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
-                                            text = "• Puedes cerrar sesión y volver más tarde\n• Recibirás un email cuando haya novedades\n• Puedes cancelar tu solicitud si cambias de opinión",
+                                            text = "• Puede cerrar sesión y volver más tarde\n• Recibirá un correo cuando haya novedades\n• Puede cancelar su solicitud si lo desea",
                                             fontSize = 12.sp,
                                             color = RainDataColors.VerdeSecundario,
                                             lineHeight = 18.sp
@@ -238,61 +250,61 @@ fun PantallaSolicitudPendiente(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Botón Cerrar Sesión
-                        Button(
+                        // Botón Cerrar Sesión (OutlinedButton, 40 dp de alto, borde verde)
+                        OutlinedButton(
                             onClick = onCerrarSesion,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = RainDataColors.VerdePrincipal
-                            ),
-                            shape = MaterialTheme.shapes.large,
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 6.dp
+                                .fillMaxWidth(0.65f)
+                                .height(40.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, RainDataColors.VerdePrincipal),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = RainDataColors.VerdePrincipal
                             )
                         ) {
                             Icon(
                                 Icons.Default.Logout,
                                 contentDescription = null,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "Cerrar Sesión",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
+                                "Cerrar sesión",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                        // Botón Cancelar Solicitud
-                        // Botón Cancelar Solicitud
-                        Button(
+                        // Botón Cancelar Solicitud (OutlinedButton, 40 dp de alto, borde rojo suave)
+                        OutlinedButton(
                             onClick = { showCancelarDialog = true },
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError
-                            ),
-                            shape = MaterialTheme.shapes.large,
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 6.dp
+                                .fillMaxWidth(0.65f)
+                                .height(40.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.65f)),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = MaterialTheme.colorScheme.error.copy(alpha = 0.85f)
                             )
                         ) {
                             Icon(
-                                Icons.Default.Cancel,
+                                Icons.Default.Close,
                                 contentDescription = null,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 "Cancelar solicitud",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
                             )
                         }
                     }
@@ -322,7 +334,7 @@ fun PantallaSolicitudPendiente(
             text = {
                 Column {
                     Text(
-                        "¿Estás seguro de que deseas cancelar tu solicitud de Administrador?",
+                        "¿Está seguro de que desea cancelar su solicitud de Administrador?",
                         fontSize = 16.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -340,7 +352,7 @@ fun PantallaSolicitudPendiente(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                "• Eliminará tu cuenta de REVOCLIMAP\n• Eliminará tu usuario del sistema\n• No se puede deshacer",
+                                "• Eliminará su cuenta de REVOCLIMAP\n• Eliminará su usuario del sistema\n• No se puede deshacer",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onErrorContainer,
                                 lineHeight = 20.sp
@@ -349,7 +361,7 @@ fun PantallaSolicitudPendiente(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        "Si deseas volver a registrarte, tendrás que crear una nueva cuenta.",
+                        "Si desea volver a registrarse, tendrá que crear una nueva cuenta.",
                         fontSize = 13.sp,
                         color = RainDataColors.VerdeSecundario,
                         fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
