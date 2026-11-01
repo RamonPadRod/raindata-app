@@ -116,7 +116,7 @@ class VoluntarioRepository(private val dao: VoluntarioDao) {
             // Ignorar errores de red
         }
     }
-<<<<<<< Updated upstream
+
 
     suspend fun sincronizarPendientesLocal() {
         if (!hn.unah.raindata.data.utils.NetworkMonitor.isOnline.value) return
@@ -140,6 +140,6 @@ class VoluntarioRepository(private val dao: VoluntarioDao) {
         }
     }
 }
-=======
-}
->>>>>>> Stashed changes
+
+
+
