@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import hn.unah.raindata.data.database.dao.DatoMeteorologicoDao
 import hn.unah.raindata.data.database.dao.PluviometroDao
 import hn.unah.raindata.data.database.dao.VoluntarioDao
@@ -18,7 +20,7 @@ import hn.unah.raindata.data.database.entities.Voluntario
         Pluviometro::class,
         DatoMeteorologico::class
     ],
-    version = 10, // Incrementamos versión para forzar migración limpia tras cambios de offline mode
+    version = 11, // v11: campo humedad_relativa en datos_meteorologicos
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -32,6 +34,15 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        /** Migración 10 → 11: agrega columna humedad_relativa (nullable) */
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE datos_meteorologicos ADD COLUMN humedad_relativa REAL DEFAULT NULL"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -39,7 +50,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "raindata_database"
                 )
-                .fallbackToDestructiveMigration() // Recrear si hay cambios de esquema en esta fase
+                .addMigrations(MIGRATION_10_11)
+                .fallbackToDestructiveMigration() // Seguro de respaldo si falla la migración
                 .build()
                 INSTANCE = instance
                 instance

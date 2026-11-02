@@ -58,6 +58,9 @@ data class DatoMeteorologico(
     @PropertyName("observaciones")
     var observaciones: String? = null,
 
+    @PropertyName("humedad_relativa")
+    var humedad_relativa: Double? = null,
+
     // ===== SINCRONIZACIÓN OFFLINE (excluidos de Firestore) =====
     @get:Exclude
     var syncStatus: SyncStatus = SyncStatus.ENVIADO,
@@ -76,4 +79,4 @@ data class DatoMeteorologico(
 
     @PropertyName("activo")
     var activo: Boolean = true
-)
+)

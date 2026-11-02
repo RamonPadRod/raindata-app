@@ -69,7 +69,9 @@ fun RegistroDatoMeteorologicoScreen(
     val fechaRegistro = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     val horaRegistro = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
 
+    var unidadPrecipitacion by remember { mutableStateOf("mm") }
     var precipitacion by remember { mutableStateOf("") }
+    var humedad by remember { mutableStateOf("") }
     var temperaturaMaxima by remember { mutableStateOf("") }
     var temperaturaMinima by remember { mutableStateOf("") }
 
@@ -82,6 +84,7 @@ fun RegistroDatoMeteorologicoScreen(
     var errorFechaLectura by remember { mutableStateOf<String?>(null) }
     var errorHoraLectura by remember { mutableStateOf<String?>(null) }
     var errorPrecipitacion by remember { mutableStateOf<String?>(null) }
+    var errorHumedad by remember { mutableStateOf<String?>(null) }
     var errorTempMax by remember { mutableStateOf<String?>(null) }
     var errorTempMin by remember { mutableStateOf<String?>(null) }
     var errorCoherenciaTemp by remember { mutableStateOf<String?>(null) }
@@ -152,8 +155,8 @@ fun RegistroDatoMeteorologicoScreen(
         errorHoraLectura = datoMeteorologicoViewModel.validarHora(horaLectura)
     }
 
-    LaunchedEffect(precipitacion) {
-        errorPrecipitacion = datoMeteorologicoViewModel.validarPrecipitacion(precipitacion)
+    LaunchedEffect(precipitacion, unidadPrecipitacion) {
+        errorPrecipitacion = datoMeteorologicoViewModel.validarPrecipitacion(precipitacion, unidadPrecipitacion)
     }
 
     LaunchedEffect(temperaturaMaxima) {
@@ -175,6 +178,10 @@ fun RegistroDatoMeteorologicoScreen(
         errorCondiciones = datoMeteorologicoViewModel.validarCondicionesDia(condicionesSeleccionadas.toList())
     }
 
+    LaunchedEffect(humedad) {
+        errorHumedad = datoMeteorologicoViewModel.validarHumedadRelativa(humedad)
+    }
+
     LaunchedEffect(observaciones) {
         errorObservaciones = datoMeteorologicoViewModel.validarObservaciones(observaciones)
     }
@@ -187,6 +194,7 @@ fun RegistroDatoMeteorologicoScreen(
             errorTempMax != null ||
             errorTempMin != null ||
             errorCoherenciaTemp != null ||
+            errorHumedad != null ||
             errorCondiciones != null ||
             errorObservaciones != null
 
@@ -482,6 +490,49 @@ fun RegistroDatoMeteorologicoScreen(
                         style = MaterialTheme.typography.titleMedium
                     )
 
+                    // ── Selector de unidad ──────────────────────────────────
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Unidad de precipitación",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilterChip(
+                                    selected = unidadPrecipitacion == "mm",
+                                    onClick = {
+                                        unidadPrecipitacion = "mm"
+                                        precipitacion = ""
+                                        errorPrecipitacion = null
+                                    },
+                                    label = { Text("mm") },
+                                    modifier = Modifier.weight(1f)
+                                )
+                                FilterChip(
+                                    selected = unidadPrecipitacion == "pulgadas",
+                                    onClick = {
+                                        unidadPrecipitacion = "pulgadas"
+                                        precipitacion = ""
+                                        errorPrecipitacion = null
+                                    },
+                                    label = { Text("pulgadas") },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+
+                    // ── Campo precipitación ──────────────────────────────────
                     OutlinedTextField(
                         value = precipitacion,
                         onValueChange = {
@@ -489,23 +540,28 @@ fun RegistroDatoMeteorologicoScreen(
                                 precipitacion = it.filter { char -> char.isDigit() || char == '.' }
                             }
                         },
-                        label = { Text("Precipitación (mm) *") },
+                        label = { Text(if (unidadPrecipitacion == "mm") "Precipitación (mm) *" else "Precipitación (pulgadas) *") },
                         placeholder = { Text("0.0") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         isError = errorPrecipitacion != null,
                         supportingText = {
-                            if (errorPrecipitacion != null) {
-                                Text(
+                            when {
+                                errorPrecipitacion != null -> Text(
                                     text = errorPrecipitacion!!,
                                     color = MaterialTheme.colorScheme.error
                                 )
-                            } else {
-                                Text("Rango: 0 - 500 mm")
+                                unidadPrecipitacion == "pulgadas" && precipitacion.isNotBlank() && precipitacion.toDoubleOrNull() != null -> {
+                                    val enMm = datoMeteorologicoViewModel.pulgadasAMilimetros(precipitacion.toDouble())
+                                    Text(String.format(Locale.US, "≈ %.2f mm", enMm))
+                                }
+                                unidadPrecipitacion == "mm" -> Text("Rango: 0 - 500 mm")
+                                else -> Text("Máx. 19.68 pulgadas (500 mm)")
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    // ── Temperatura máxima ───────────────────────────────────
                     OutlinedTextField(
                         value = temperaturaMaxima,
                         onValueChange = {
@@ -530,6 +586,7 @@ fun RegistroDatoMeteorologicoScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    // ── Temperatura mínima ───────────────────────────────────
                     OutlinedTextField(
                         value = temperaturaMinima,
                         onValueChange = {
@@ -554,6 +611,31 @@ fun RegistroDatoMeteorologicoScreen(
                                 )
                             } else {
                                 Text("Rango: -5°C - 40°C")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // ── Humedad relativa ─────────────────────────────────────
+                    OutlinedTextField(
+                        value = humedad,
+                        onValueChange = {
+                            if (it.length <= 5) {
+                                humedad = it.filter { char -> char.isDigit() || char == '.' }
+                            }
+                        },
+                        label = { Text("Humedad relativa (%) - Opcional") },
+                        placeholder = { Text("75.0") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        isError = errorHumedad != null,
+                        supportingText = {
+                            if (errorHumedad != null) {
+                                Text(
+                                    text = errorHumedad!!,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Text("Rango: 0 - 100 %")
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -688,9 +770,15 @@ fun RegistroDatoMeteorologicoScreen(
                 Button(
                     onClick = {
                         scope.launch {
-                            val precipitacionDouble = precipitacion.toDoubleOrNull() ?: 0.0
+                            val precipitacionRaw = precipitacion.toDoubleOrNull() ?: 0.0
+                            val precipitacionDouble = if (unidadPrecipitacion == "pulgadas") {
+                                datoMeteorologicoViewModel.pulgadasAMilimetros(precipitacionRaw)
+                            } else {
+                                precipitacionRaw
+                            }
                             val tempMaxDouble = temperaturaMaxima.toDoubleOrNull()
                             val tempMinDouble = temperaturaMinima.toDoubleOrNull()
+                            val humedadDouble = humedad.toDoubleOrNull()
 
                             val dato = DatoMeteorologico(
                                 voluntario_uid = voluntarioSeleccionado!!.firebase_uid,
@@ -705,6 +793,7 @@ fun RegistroDatoMeteorologicoScreen(
                                 precipitacion = precipitacionDouble,
                                 temperatura_maxima = tempMaxDouble,
                                 temperatura_minima = tempMinDouble,
+                                humedad_relativa = humedadDouble,
                                 condiciones_dia = condicionesSeleccionadas.joinToString("|"),
                                 observaciones = observaciones.ifBlank { null }
                             )
@@ -747,6 +836,8 @@ fun RegistroDatoMeteorologicoScreen(
                         fechaLectura = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
                         horaLectura = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
                         precipitacion = ""
+                        unidadPrecipitacion = "mm"
+                        humedad = ""
                         temperaturaMaxima = ""
                         temperaturaMinima = ""
                         condicionesSeleccionadas = setOf()
@@ -788,6 +879,7 @@ fun RegistroDatoMeteorologicoScreen(
                             errorTempMax,
                             errorTempMin,
                             errorCoherenciaTemp,
+                            errorHumedad,
                             errorCondiciones,
                             errorObservaciones
                         ).forEach { error ->

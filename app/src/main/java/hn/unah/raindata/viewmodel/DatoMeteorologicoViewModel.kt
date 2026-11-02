@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -331,10 +333,40 @@ class DatoMeteorologicoViewModel(application: Application) : AndroidViewModel(ap
         }
     }
 
-    fun validarPrecipitacion(valor: String): String? {
+    /**
+     * Convierte pulgadas a mm redondeando a 2 decimales con HALF_UP.
+     * Evita errores de coma flotante como 27.940000000000005.
+     */
+    fun pulgadasAMilimetros(pulgadas: Double): Double {
+        return BigDecimal(pulgadas * 25.4).setScale(2, RoundingMode.HALF_UP).toDouble()
+    }
+
+    fun validarPrecipitacion(valor: String, unidad: String = "mm"): String? {
         if (valor.isBlank()) return "La precipitación es obligatoria"
         val p = valor.toDoubleOrNull() ?: return "Debe ser un número"
-        if (p < 0 || p > 500) return "Rango válido: 0 - 500 mm"
+        if (p < 0) return "No se permiten valores negativos"
+        // Validar máximo 2 decimales
+        val partes = valor.split(".")
+        if (partes.size > 1 && partes[1].length > 2) return "Máximo 2 decimales permitidos"
+        if (unidad == "pulgadas") {
+            val enMm = pulgadasAMilimetros(p)
+            if (enMm > 500.0) return "Máximo 19.68 pulgadas (500 mm)"
+        } else {
+            if (p > 500) return "Rango válido: 0 - 500 mm"
+        }
+        return null
+    }
+
+    /**
+     * Humedad relativa: opcional. Si tiene valor debe ser numérico, 0–100, max 1 decimal.
+     */
+    fun validarHumedadRelativa(valor: String): String? {
+        if (valor.isBlank()) return null // Opcional
+        val h = valor.toDoubleOrNull() ?: return "Debe ser un número"
+        if (h < 0) return "No se permiten valores negativos"
+        if (h > 100) return "La humedad no puede superar 100 %"
+        val partes = valor.split(".")
+        if (partes.size > 1 && partes[1].length > 1) return "Máximo 1 decimal permitido"
         return null
     }
 
