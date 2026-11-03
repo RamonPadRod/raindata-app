@@ -541,6 +541,13 @@ fun DatoMeteorologicoCard(
 
                         Spacer(modifier = Modifier.weight(1f))
                     }
+
+                    if (dato.humedad_relativa != null) {
+                        SuggestionChip(
+                            onClick = onVerDetalles,
+                            label = { Text("Hum. ${dato.humedad_relativa} %") }
+                        )
+                    }
                 }
             }
         }

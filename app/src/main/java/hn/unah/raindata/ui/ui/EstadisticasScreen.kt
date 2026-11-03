@@ -182,6 +182,30 @@ fun EstadisticasScreen(viewModel: EstadisticasViewModel) {
                     }
                 }
 
+                // ---- HUMEDAD RELATIVA ----
+                item {
+                    SectionCard(title = "Humedad relativa", icon = Icons.Default.WaterDrop) {
+                        val r = estadisticas.resumen
+                        if (r.humedadPromedio == null && r.humedadMaxima == null && r.humedadMinima == null) {
+                            Text(
+                                "No hay datos de humedad relativa en el período seleccionado",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth().padding(16.dp)
+                            )
+                        } else {
+                            MetricGrid(
+                                listOf(
+                                    Triple(Icons.Default.WaterDrop, "Promedio", r.humedadPromedio?.let { "${"%.1f".format(it)} %" } ?: "—"),
+                                    Triple(Icons.Default.KeyboardArrowUp, "Máxima", r.humedadMaxima?.let { "${"%.1f".format(it)} %" } ?: "—"),
+                                    Triple(Icons.Default.KeyboardArrowDown, "Mínima", r.humedadMinima?.let { "${"%.1f".format(it)} %" } ?: "—")
+                                )
+                            )
+                        }
+                    }
+                }
+
                 // ---- POR UBICACIÓN ----
                 item {
                     SectionCard(title = "Actividad", icon = Icons.Default.LocationOn) {

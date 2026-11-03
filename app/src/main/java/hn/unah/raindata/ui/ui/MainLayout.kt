@@ -77,7 +77,7 @@ fun MainLayout(
                     title = {
                         Text(
                             text = when(currentScreen) {
-                                "HOME" -> "DatosLluvia"
+                                "HOME" -> "REVOCLIMAP"
                                 "VOLUNTARIOS" -> "Gestión de voluntarios"
                                 "REGISTRO_VOLUNTARIO" -> "Registro de voluntario"
                                 "PLUVIOMETROS" -> "Gestión de pluviómetros"
@@ -86,7 +86,7 @@ fun MainLayout(
                                 "REGISTRO_DATO_METEOROLOGICO" -> "Registro de dato meteorológico"
                                 "PERFIL" -> "Perfil de usuario"
                                 "ESTADISTICAS" -> "Estadísticas y Reportes"
-                                else -> "DatosLluvia"
+                                else -> "REVOCLIMAP"
                             }
                         )
                     },
@@ -231,7 +231,7 @@ fun DrawerContent(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "DatosLluvia",
+                        text = "REVOCLIMAP",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary

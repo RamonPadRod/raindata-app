@@ -133,7 +133,7 @@ class EstadisticasViewModel(application: Application) : AndroidViewModel(applica
     private suspend fun generarExcel(context: Context, datos: List<DatoMeteorologico>): Uri =
         withContext(Dispatchers.IO) {
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            val fileName = "raindata_reporte_$timestamp.xlsx"
+            val fileName = "revoclimap_reporte_$timestamp.xlsx"
 
             val outputStream: OutputStream
             val uri: Uri
@@ -154,13 +154,13 @@ class EstadisticasViewModel(application: Application) : AndroidViewModel(applica
             }
 
             outputStream.use { os ->
-                val wb = Workbook(os, "RainData", "1.0")
+                val wb = Workbook(os, "REVOCLIMAP", "1.0")
                 val ws = wb.newWorksheet("Datos Meteorológicos")
 
                 val headers = listOf(
                     "Pluviómetro", "Voluntario", "Fecha Lectura", "Hora Lectura",
                     "Precipitación (mm)", "Temp. Máx (°C)", "Temp. Mín (°C)",
-                    "Condiciones", "Observaciones", "Fecha Registro"
+                    "Humedad (%)", "Condiciones", "Observaciones", "Fecha Registro"
                 )
                 headers.forEachIndexed { col, header ->
                     ws.value(0, col, header)
@@ -176,9 +176,14 @@ class EstadisticasViewModel(application: Application) : AndroidViewModel(applica
                     ws.value(row, 4, dato.precipitacion)
                     ws.value(row, 5, dato.temperatura_maxima?.toString() ?: "")
                     ws.value(row, 6, dato.temperatura_minima?.toString() ?: "")
-                    ws.value(row, 7, dato.condiciones_dia.replace("|", ", "))
-                    ws.value(row, 8, dato.observaciones ?: "")
-                    ws.value(row, 9, dato.fecha_registro)
+                    if (dato.humedad_relativa != null) {
+                        ws.value(row, 7, dato.humedad_relativa!!)
+                    } else {
+                        ws.value(row, 7, "")
+                    }
+                    ws.value(row, 8, dato.condiciones_dia.replace("|", ", "))
+                    ws.value(row, 9, dato.observaciones ?: "")
+                    ws.value(row, 10, dato.fecha_registro)
                 }
 
                 wb.finish()
@@ -212,7 +217,7 @@ class EstadisticasViewModel(application: Application) : AndroidViewModel(applica
     private suspend fun generarPdf(context: Context, datos: List<DatoMeteorologico>): Uri =
         withContext(Dispatchers.IO) {
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            val fileName = "raindata_reporte_$timestamp.pdf"
+            val fileName = "revoclimap_reporte_$timestamp.pdf"
             val baos = ByteArrayOutputStream()
 
             // Fuentes iText 5
@@ -238,7 +243,7 @@ class EstadisticasViewModel(application: Application) : AndroidViewModel(applica
             titulo.alignment = Element.ALIGN_CENTER
             document.add(titulo)
 
-            val subtitulo = Paragraph("RainData — Sistema Pluviométrico\n", grayFont)
+            val subtitulo = Paragraph("REVOCLIMAP — Sistema de Monitoreo Pluviométrico\n", grayFont)
             subtitulo.alignment = Element.ALIGN_CENTER
             document.add(subtitulo)
 
@@ -271,6 +276,7 @@ class EstadisticasViewModel(application: Application) : AndroidViewModel(applica
             addResumenRow("Día con mayor lluvia:", stats.resumen.diaMayorPrecipitacion ?: "—")
             addResumenRow("Temperatura máxima abs.:", stats.resumen.temperaturaMaximaAbsoluta?.let { "${"%.1f".format(it)}°C" } ?: "—")
             addResumenRow("Temperatura mínima abs.:", stats.resumen.temperaturaMinimaAbsoluta?.let { "${"%.1f".format(it)}°C" } ?: "—")
+            addResumenRow("Humedad relativa promedio:", stats.resumen.humedadPromedio?.let { "${"%.1f".format(it)} %" } ?: "—")
             addResumenRow("Pluviómetro más activo:", stats.pluvioMasActivo?.let { "${it.registro} (${it.totalRegistros} reg.)" } ?: "—")
             addResumenRow("Voluntario con más registros:", stats.voluntarioTop?.let { "${it.nombre} (${it.totalRegistros} reg.)" } ?: "—")
 
@@ -282,11 +288,11 @@ class EstadisticasViewModel(application: Application) : AndroidViewModel(applica
                 FontFactory.getFont(FontFactory.HELVETICA_BOLD, 13f, BaseColor.DARK_GRAY))
             document.add(tituloDetalle)
 
-            val dataTable = PdfPTable(8)
+            val dataTable = PdfPTable(9)
             dataTable.widthPercentage = 100f
-            dataTable.setWidths(floatArrayOf(14f, 14f, 11f, 9f, 13f, 10f, 10f, 19f))
+            dataTable.setWidths(floatArrayOf(12f, 13f, 11f, 9f, 12f, 9f, 9f, 10f, 15f))
 
-            val headers = listOf("Pluviómetro", "Voluntario", "Fecha", "Hora", "Precip. (mm)", "T.Máx", "T.Mín", "Condiciones")
+            val headers = listOf("Pluviómetro", "Voluntario", "Fecha", "Hora", "Precip. (mm)", "T.Máx", "T.Mín", "Humedad (%)", "Condiciones")
             val headerColor = BaseColor(0, 105, 92) // teal oscuro
             headers.forEach { h ->
                 val cell = PdfPCell(Phrase(h, boldFontTiny))
@@ -303,6 +309,7 @@ class EstadisticasViewModel(application: Application) : AndroidViewModel(applica
                 dataTable.addCell(PdfPCell(Phrase("${"%.2f".format(dato.precipitacion)}", normalFontTiny)))
                 dataTable.addCell(PdfPCell(Phrase(dato.temperatura_maxima?.let { "${"%.1f".format(it)}°" } ?: "—", normalFontTiny)))
                 dataTable.addCell(PdfPCell(Phrase(dato.temperatura_minima?.let { "${"%.1f".format(it)}°" } ?: "—", normalFontTiny)))
+                dataTable.addCell(PdfPCell(Phrase(dato.humedad_relativa?.let { "${"%.1f".format(it)}%" } ?: "—", normalFontTiny)))
                 dataTable.addCell(PdfPCell(Phrase(dato.condiciones_dia.replace("|", ", "), normalFontTiny)))
             }
 

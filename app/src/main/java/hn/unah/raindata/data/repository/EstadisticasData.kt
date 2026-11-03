@@ -29,7 +29,10 @@ data class ResumenGeneral(
     val temperaturaMaximaAbsoluta: Double? = null,
     val temperaturaMinimaAbsoluta: Double? = null,
     val promedioTemperaturaMaxima: Double? = null,
-    val promedioTemperaturaMinima: Double? = null
+    val promedioTemperaturaMinima: Double? = null,
+    val humedadPromedio: Double? = null,
+    val humedadMaxima: Double? = null,
+    val humedadMinima: Double? = null
 )
 
 data class PrecipPorPluviometro(

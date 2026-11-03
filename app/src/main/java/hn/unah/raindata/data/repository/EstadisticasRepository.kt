@@ -52,7 +52,10 @@ class EstadisticasRepository(
                 temperaturaMaximaAbsoluta = datoDao.temperaturaMaximaAbsoluta(desde, hasta, pid, vid),
                 temperaturaMinimaAbsoluta = datoDao.temperaturaMinimaAbsoluta(desde, hasta, pid, vid),
                 promedioTemperaturaMaxima = datoDao.promedioTemperaturaMaxima(desde, hasta, pid, vid),
-                promedioTemperaturaMinima = datoDao.promedioTemperaturaMinima(desde, hasta, pid, vid)
+                promedioTemperaturaMinima = datoDao.promedioTemperaturaMinima(desde, hasta, pid, vid),
+                humedadPromedio = datoDao.promedioHumedadRelativa(desde, hasta, pid, vid),
+                humedadMaxima = datoDao.humedadRelativaMaxima(desde, hasta, pid, vid),
+                humedadMinima = datoDao.humedadRelativaMinima(desde, hasta, pid, vid)
             )
 
             val precipPorPluvio = datoDao

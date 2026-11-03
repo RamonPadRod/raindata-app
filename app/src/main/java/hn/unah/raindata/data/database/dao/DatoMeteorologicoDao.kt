@@ -117,6 +117,36 @@ interface DatoMeteorologicoDao {
     suspend fun promedioTemperaturaMinima(desde: String, hasta: String, pluvId: String, volId: String): Double?
 
     @Query("""
+        SELECT AVG(humedad_relativa) FROM datos_meteorologicos
+        WHERE activo = 1 AND humedad_relativa IS NOT NULL
+          AND (:desde = '' OR fecha_lectura >= :desde)
+          AND (:hasta = '' OR fecha_lectura <= :hasta)
+          AND (:pluvId = '' OR pluviometro_id = :pluvId)
+          AND (:volId  = '' OR voluntario_uid = :volId)
+    """)
+    suspend fun promedioHumedadRelativa(desde: String, hasta: String, pluvId: String, volId: String): Double?
+
+    @Query("""
+        SELECT MAX(humedad_relativa) FROM datos_meteorologicos
+        WHERE activo = 1 AND humedad_relativa IS NOT NULL
+          AND (:desde = '' OR fecha_lectura >= :desde)
+          AND (:hasta = '' OR fecha_lectura <= :hasta)
+          AND (:pluvId = '' OR pluviometro_id = :pluvId)
+          AND (:volId  = '' OR voluntario_uid = :volId)
+    """)
+    suspend fun humedadRelativaMaxima(desde: String, hasta: String, pluvId: String, volId: String): Double?
+
+    @Query("""
+        SELECT MIN(humedad_relativa) FROM datos_meteorologicos
+        WHERE activo = 1 AND humedad_relativa IS NOT NULL
+          AND (:desde = '' OR fecha_lectura >= :desde)
+          AND (:hasta = '' OR fecha_lectura <= :hasta)
+          AND (:pluvId = '' OR pluviometro_id = :pluvId)
+          AND (:volId  = '' OR voluntario_uid = :volId)
+    """)
+    suspend fun humedadRelativaMinima(desde: String, hasta: String, pluvId: String, volId: String): Double?
+
+    @Query("""
         SELECT pluviometro_registro, COALESCE(SUM(precipitacion), 0.0) AS totalPrecipitacion
         FROM datos_meteorologicos
         WHERE activo = 1
