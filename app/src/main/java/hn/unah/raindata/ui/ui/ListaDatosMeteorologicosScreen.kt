@@ -3,6 +3,8 @@ package hn.unah.raindata.ui.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -64,6 +66,34 @@ fun ListaDatosMeteorologicosScreen(
                         dato.observaciones?.lowercase()?.contains(busqueda) == true
             }
         }
+    }
+
+    var paginaActual by rememberSaveable { mutableStateOf(1) }
+    val listState = rememberLazyListState()
+
+    val pageSize = 10
+    val totalItems = datosFiltrados.size
+    val totalPaginas = maxOf(1, (totalItems + pageSize - 1) / pageSize)
+
+    LaunchedEffect(textoBusqueda) {
+        paginaActual = 1
+    }
+
+    LaunchedEffect(totalPaginas) {
+        if (paginaActual > totalPaginas) {
+            paginaActual = totalPaginas
+        }
+        if (paginaActual < 1) {
+            paginaActual = 1
+        }
+    }
+
+    val startIndex = (paginaActual - 1) * pageSize
+    val endIndex = minOf(startIndex + pageSize, totalItems)
+    val datosPaginados = if (startIndex < totalItems) {
+        datosFiltrados.subList(startIndex, endIndex)
+    } else {
+        emptyList()
     }
 
     Scaffold(
@@ -294,12 +324,13 @@ fun ListaDatosMeteorologicosScreen(
 
                 else -> {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 88.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(
-                            items = datosFiltrados,
+                            items = datosPaginados,
                             key = { it.id }
                         ) { dato ->
                             DatoMeteorologicoCard(
@@ -333,6 +364,57 @@ fun ListaDatosMeteorologicosScreen(
                                 canEdit = UserSession.canEditDatosMeteorologicos(),
                                 canDelete = UserSession.canDeleteDatosMeteorologicos()
                             )
+                        }
+
+                        if (totalItems > pageSize) {
+                            item {
+                                val desde = startIndex + 1
+                                val hasta = endIndex
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            if (paginaActual > 1) {
+                                                paginaActual--
+                                                scope.launch { listState.scrollToItem(0) }
+                                            }
+                                        },
+                                        enabled = paginaActual > 1
+                                    ) {
+                                        Text("Anterior")
+                                    }
+
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = "Página $paginaActual de $totalPaginas",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Text(
+                                            text = "Mostrando $desde–$hasta de $totalItems",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            if (paginaActual < totalPaginas) {
+                                                paginaActual++
+                                                scope.launch { listState.scrollToItem(0) }
+                                            }
+                                        },
+                                        enabled = paginaActual < totalPaginas
+                                    ) {
+                                        Text("Siguiente")
+                                    }
+                                }
+                            }
                         }
                     }
                 }

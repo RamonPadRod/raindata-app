@@ -29,6 +29,12 @@ import hn.unah.raindata.data.repository.PeriodoFiltro
 import hn.unah.raindata.data.repository.PrecipPorPluviometro
 import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.viewmodel.EstadisticasViewModel
+import hn.unah.raindata.ui.components.DonutChart
+import hn.unah.raindata.ui.components.DonutSlice
+import hn.unah.raindata.ui.components.DonutChartPalette
+import hn.unah.raindata.ui.components.DonutOtrosColor
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -144,15 +150,95 @@ fun EstadisticasScreen(viewModel: EstadisticasViewModel) {
                                 color = MaterialTheme.colorScheme.secondary
                             )
                         }
-                        Spacer(Modifier.height(12.dp))
-                        if (estadisticas.precipPorPluviometro.isNotEmpty()) {
-                            Text(
-                                "Comparativa por pluviómetro",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                            PrecipBarras(estadisticas.precipPorPluviometro)
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "Distribución por pluviómetro",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        val totalPrecip = estadisticas.precipPorPluviometro.sumOf { it.totalMm }
+                        if (estadisticas.precipPorPluviometro.isEmpty() || totalPrecip <= 0.0) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(120.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Sin datos",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            val itemsConDatos = estadisticas.precipPorPluviometro.sortedByDescending { it.totalMm }
+                            val slices = mutableListOf<DonutSlice>()
+                            if (itemsConDatos.size <= 5) {
+                                itemsConDatos.forEachIndexed { index, item ->
+                                    val color = DonutChartPalette[index % DonutChartPalette.size]
+                                    slices.add(DonutSlice(item.registro, item.totalMm, color))
+                                }
+                            } else {
+                                itemsConDatos.take(5).forEachIndexed { index, item ->
+                                    val color = DonutChartPalette[index % DonutChartPalette.size]
+                                    slices.add(DonutSlice(item.registro, item.totalMm, color))
+                                }
+                                val restoMm = itemsConDatos.drop(5).sumOf { it.totalMm }
+                                if (restoMm > 0.0) {
+                                    slices.add(DonutSlice("Otros", restoMm, DonutOtrosColor))
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                DonutChart(
+                                    slices = slices,
+                                    centerLabel = "${"%.1f".format(totalPrecip)}",
+                                    centerSubLabel = "mm",
+                                    modifier = Modifier.size(160.dp)
+                                )
+
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    slices.forEach { slice ->
+                                        val pct = if (totalPrecip > 0) (slice.value / totalPrecip) * 100.0 else 0.0
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(10.dp)
+                                                    .clip(CircleShape)
+                                                    .background(slice.color)
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                text = slice.label,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                modifier = Modifier.weight(1f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(Modifier.width(4.dp))
+                                            Text(
+                                                text = "${"%.1f".format(slice.value)} mm (${"%.1f".format(pct)}%)",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -222,28 +308,7 @@ fun EstadisticasScreen(viewModel: EstadisticasViewModel) {
                                 label = "Voluntario con más registros",
                                 value = stats.voluntarioTop?.let { "${it.nombre} (${it.totalRegistros} reg.)" } ?: "—"
                             )
-                            if (stats.precipPorPluviometro.isNotEmpty()) {
-                                HorizontalDivider()
-                                Text(
-                                    "Top pluviómetros por precipitación",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                stats.precipPorPluviometro.take(5).forEach { item ->
-                                    Row(
-                                        Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(item.registro, style = MaterialTheme.typography.bodySmall)
-                                        Text(
-                                            "${"%.1f".format(item.totalMm)} mm",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                }
-                            }
+
                         }
                     }
                 }
