@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
@@ -13,9 +14,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
@@ -26,6 +29,7 @@ import hn.unah.raindata.data.session.UserSession
 import hn.unah.raindata.viewmodel.PluviometroViewModel
 import hn.unah.raindata.viewmodel.VoluntarioViewModel
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,10 +98,7 @@ fun RegistroPluviometroScreen(
         it.tipo_usuario == "Voluntario" && it.estado_aprobacion == "Aprobado"
     }
 
-
-
-    // Estados del formulario
-    // ✅ PERSISTENCIA: Usar estados del ViewModel
+    // Estados del formulario persistidos en ViewModel
     val direccion by pluviometroViewModel.direccionDraft.collectAsState()
     val departamento by pluviometroViewModel.departamentoDraft.collectAsState()
     val municipio by pluviometroViewModel.municipioDraft.collectAsState()
@@ -106,6 +107,8 @@ fun RegistroPluviometroScreen(
     val voluntarioSeleccionado by pluviometroViewModel.voluntarioDraft.collectAsState()
     val observaciones by pluviometroViewModel.observacionesDraft.collectAsState()
     val ubicacionSeleccionada by pluviometroViewModel.ubicacionDraft.collectAsState()
+    val latitudTexto by pluviometroViewModel.latitudDraft.collectAsState()
+    val longitudTexto by pluviometroViewModel.longitudDraft.collectAsState()
 
     var expandedVoluntario by remember { mutableStateOf(false) }
     var expandedDepartamento by remember { mutableStateOf(false) }
@@ -113,6 +116,8 @@ fun RegistroPluviometroScreen(
 
     // Estados de error
     var errorDireccion by remember { mutableStateOf<String?>(null) }
+    var errorLatitud by remember { mutableStateOf<String?>(null) }
+    var errorLongitud by remember { mutableStateOf<String?>(null) }
     var errorCoordenadas by remember { mutableStateOf<String?>(null) }
     var errorAldea by remember { mutableStateOf<String?>(null) }
     var errorBarrio by remember { mutableStateOf<String?>(null) }
@@ -133,6 +138,18 @@ fun RegistroPluviometroScreen(
     val ubicacionPredeterminada = LatLng(14.0723, -87.1921)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(ubicacionSeleccionada ?: ubicacionPredeterminada, 15f)
+    }
+
+    // Inicializar campos de texto de coordenadas si hay ubicación previa en borrador
+    LaunchedEffect(Unit) {
+        if (latitudTexto.isBlank() && ubicacionSeleccionada != null) {
+            val latRedondeada = PluviometroViewModel.redondearA6Decimales(ubicacionSeleccionada!!.latitude)
+            pluviometroViewModel.setLatitudDraft(String.format(Locale.US, "%.6f", latRedondeada))
+        }
+        if (longitudTexto.isBlank() && ubicacionSeleccionada != null) {
+            val lngRedondeada = PluviometroViewModel.redondearA6Decimales(ubicacionSeleccionada!!.longitude)
+            pluviometroViewModel.setLongitudDraft(String.format(Locale.US, "%.6f", lngRedondeada))
+        }
     }
 
     // ✅ GENERAR CÓDIGO AUTOMÁTICAMENTE
@@ -169,15 +186,30 @@ fun RegistroPluviometroScreen(
                 try {
                     fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                         location?.let {
-                            pluviometroViewModel.setUbicacionDraft(LatLng(it.latitude, it.longitude))
-                            cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                LatLng(it.latitude, it.longitude), 15f
-                            )
+                            val latRedondeada = PluviometroViewModel.redondearA6Decimales(it.latitude)
+                            val lngRedondeada = PluviometroViewModel.redondearA6Decimales(it.longitude)
+                            val latLng = LatLng(latRedondeada, lngRedondeada)
+                            pluviometroViewModel.setUbicacionDraft(latLng)
+                            pluviometroViewModel.setLatitudDraft(String.format(Locale.US, "%.6f", latRedondeada))
+                            pluviometroViewModel.setLongitudDraft(String.format(Locale.US, "%.6f", lngRedondeada))
+                            scope.launch {
+                                try {
+                                    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+                                } catch (e: Exception) {}
+                            }
                         }
                     }
                 } catch (e: SecurityException) {}
             }
         }
+    }
+
+    // Parseo numérico normalizado (coma a punto, evitando NumberFormatException)
+    val latitudDouble = remember(latitudTexto) {
+        latitudTexto.trim().replace(',', '.').toDoubleOrNull()
+    }
+    val longitudDouble = remember(longitudTexto) {
+        longitudTexto.trim().replace(',', '.').toDoubleOrNull()
     }
 
     // FUNCIONES DE VALIDACIÓN
@@ -189,13 +221,6 @@ fun RegistroPluviometroScreen(
         } else null
     }
 
-    fun validarCoordenadas(lat: Double?, lng: Double?): String? {
-        if (lat == null || lng == null) return "Debe seleccionar una ubicación en el mapa"
-        if (lat !in 13.0..16.0) return "Latitud fuera del rango de Honduras (13° a 16°)"
-        if (lng !in -89.0..-83.0) return "Longitud fuera del rango de Honduras (-89° a -83°)"
-        return null
-    }
-
     fun validarLongitudTexto(valor: String, campo: String, maxLongitud: Int = 50): String? {
         if (valor.isBlank()) return "$campo es obligatorio"
         if (valor.length > maxLongitud) return "$campo no puede exceder $maxLongitud caracteres"
@@ -204,9 +229,41 @@ fun RegistroPluviometroScreen(
 
     // Validar en tiempo real
     LaunchedEffect(direccion) { errorDireccion = validarDireccion(direccion) }
-    LaunchedEffect(ubicacionSeleccionada) {
-        errorCoordenadas = validarCoordenadas(ubicacionSeleccionada?.latitude, ubicacionSeleccionada?.longitude)
+
+    LaunchedEffect(latitudTexto) {
+        errorLatitud = if (latitudTexto.isBlank()) {
+            "La latitud es obligatoria"
+        } else {
+            pluviometroViewModel.validarLatitud(latitudDouble)
+        }
     }
+
+    LaunchedEffect(longitudTexto) {
+        errorLongitud = if (longitudTexto.isBlank()) {
+            "La longitud es obligatoria"
+        } else {
+            pluviometroViewModel.validarLongitud(longitudDouble)
+        }
+    }
+
+    LaunchedEffect(latitudDouble, longitudDouble, errorLatitud, errorLongitud) {
+        errorCoordenadas = when {
+            latitudTexto.isBlank() || longitudTexto.isBlank() -> "Debe ingresar latitud y longitud"
+            errorLatitud != null -> errorLatitud
+            errorLongitud != null -> errorLongitud
+            else -> pluviometroViewModel.validarCoordenadas(latitudDouble, longitudDouble)
+        }
+    }
+
+    // Aviso opcional NO bloqueante si está fuera de Honduras
+    val advertenciaHonduras = remember(latitudDouble, longitudDouble, errorLatitud, errorLongitud) {
+        if (latitudDouble != null && longitudDouble != null && errorLatitud == null && errorLongitud == null) {
+            if (pluviometroViewModel.estaFueraDeHonduras(latitudDouble, longitudDouble)) {
+                "Estas coordenadas están fuera de Honduras. Verifique el signo de la longitud."
+            } else null
+        } else null
+    }
+
     LaunchedEffect(aldea) { errorAldea = validarLongitudTexto(aldea, "Aldea") }
     LaunchedEffect(caserioBarrioColonia) {
         if (caserioBarrioColonia.isNotBlank()) {
@@ -236,8 +293,10 @@ fun RegistroPluviometroScreen(
         } else null
     }
 
-    // Verificar si hay errores
+    // Verificar si hay errores bloqueantes
     val hayErrores = errorDireccion != null ||
+            errorLatitud != null ||
+            errorLongitud != null ||
             errorCoordenadas != null ||
             errorAldea != null ||
             errorBarrio != null ||
@@ -245,6 +304,8 @@ fun RegistroPluviometroScreen(
             errorDepartamento != null ||
             errorMunicipio != null ||
             direccion.isBlank() ||
+            latitudTexto.isBlank() ||
+            longitudTexto.isBlank() ||
             departamento.isBlank() ||
             municipio.isBlank() ||
             aldea.isBlank() ||
@@ -286,7 +347,7 @@ fun RegistroPluviometroScreen(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = "🔒 Registrando como administrador: ${usuarioActual?.nombre}",
+                        text = "🔒 Registrando como administrador: ${usuarioActual?.nombre ?: ""}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -565,7 +626,109 @@ fun RegistroPluviometroScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Botón para mapa
+                    // ===== CAMPOS DE COORDENADAS MANUALES (REQ. 4) =====
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = latitudTexto,
+                            onValueChange = { nuevoTexto ->
+                                val textoFiltrado = pluviometroViewModel.filtrarEntradaCoordenada(nuevoTexto, esLatitud = true)
+                                if (textoFiltrado != null) {
+                                    pluviometroViewModel.setLatitudDraft(textoFiltrado)
+                                    val lat = textoFiltrado.trim().replace(',', '.').toDoubleOrNull()
+                                    val lng = longitudTexto.trim().replace(',', '.').toDoubleOrNull()
+                                    if (lat != null && lat.isFinite() && lat in -90.0..90.0 &&
+                                        lng != null && lng.isFinite() && lng in -180.0..180.0) {
+                                        val nuevoLatLng = LatLng(lat, lng)
+                                        pluviometroViewModel.setUbicacionDraft(nuevoLatLng)
+                                        scope.launch {
+                                            try {
+                                                cameraPositionState.animate(CameraUpdateFactory.newLatLng(nuevoLatLng))
+                                            } catch (e: Exception) {}
+                                        }
+                                    } else {
+                                        pluviometroViewModel.setUbicacionDraft(null)
+                                    }
+                                }
+                            },
+                            label = { Text("Latitud *") },
+                            placeholder = { Text("Ej. 14.072300") },
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            isError = errorLatitud != null,
+                            supportingText = {
+                                if (errorLatitud != null) {
+                                    Text(
+                                        text = errorLatitud!!,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                } else {
+                                    Text("Entre -90 y 90 (hasta 6 decimales)")
+                                }
+                            }
+                        )
+
+                        OutlinedTextField(
+                            value = longitudTexto,
+                            onValueChange = { nuevoTexto ->
+                                val textoFiltrado = pluviometroViewModel.filtrarEntradaCoordenada(nuevoTexto, esLatitud = false)
+                                if (textoFiltrado != null) {
+                                    pluviometroViewModel.setLongitudDraft(textoFiltrado)
+                                    val lat = latitudTexto.trim().replace(',', '.').toDoubleOrNull()
+                                    val lng = textoFiltrado.trim().replace(',', '.').toDoubleOrNull()
+                                    if (lat != null && lat.isFinite() && lat in -90.0..90.0 &&
+                                        lng != null && lng.isFinite() && lng in -180.0..180.0) {
+                                        val nuevoLatLng = LatLng(lat, lng)
+                                        pluviometroViewModel.setUbicacionDraft(nuevoLatLng)
+                                        scope.launch {
+                                            try {
+                                                cameraPositionState.animate(CameraUpdateFactory.newLatLng(nuevoLatLng))
+                                            } catch (e: Exception) {}
+                                        }
+                                    } else {
+                                        pluviometroViewModel.setUbicacionDraft(null)
+                                    }
+                                }
+                            },
+                            label = { Text("Longitud *") },
+                            placeholder = { Text("Ej. -87.192100") },
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            isError = errorLongitud != null,
+                            supportingText = {
+                                if (errorLongitud != null) {
+                                    Text(
+                                        text = errorLongitud!!,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                } else {
+                                    Text("Entre -180 y 180 (hasta 6 decimales)")
+                                }
+                            }
+                        )
+                    }
+
+                    // Aviso opcional NO bloqueante (fuera de Honduras)
+                    if (advertenciaHonduras != null) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                            shape = MaterialTheme.shapes.small,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "⚠️ $advertenciaHonduras",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+
+                    // Botón para mapa / GPS
                     Button(
                         onClick = {
                             if (!mostrarMapa) {
@@ -578,6 +741,24 @@ fun RegistroPluviometroScreen(
                                     } catch (e: Exception) {}
                                 } else {
                                     mostrarMapa = true
+                                    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+                                    try {
+                                        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                                            location?.let {
+                                                val latRedondeada = PluviometroViewModel.redondearA6Decimales(it.latitude)
+                                                val lngRedondeada = PluviometroViewModel.redondearA6Decimales(it.longitude)
+                                                val latLng = LatLng(latRedondeada, lngRedondeada)
+                                                pluviometroViewModel.setUbicacionDraft(latLng)
+                                                pluviometroViewModel.setLatitudDraft(String.format(Locale.US, "%.6f", latRedondeada))
+                                                pluviometroViewModel.setLongitudDraft(String.format(Locale.US, "%.6f", lngRedondeada))
+                                                scope.launch {
+                                                    try {
+                                                        cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
+                                                    } catch (e: Exception) {}
+                                                }
+                                            }
+                                        }
+                                    } catch (e: SecurityException) {}
                                 }
                             } else {
                                 mostrarMapa = false
@@ -587,10 +768,10 @@ fun RegistroPluviometroScreen(
                     ) {
                         Icon(Icons.Default.MyLocation, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(if (mostrarMapa) "Ocultar mapa" else "Seleccionar ubicación en mapa")
+                        Text(if (mostrarMapa) "Ocultar mapa" else "Ver/seleccionar ubicación en mapa")
                     }
 
-                    // Mapa
+                    // Mapa interactivo
                     if (mostrarMapa) {
                         Card(
                             modifier = Modifier
@@ -609,7 +790,12 @@ fun RegistroPluviometroScreen(
                                     myLocationButtonEnabled = permisoUbicacionConcedido
                                 ),
                                 onMapClick = { latLng ->
-                                    pluviometroViewModel.setUbicacionDraft(latLng)
+                                    val latRedondeada = PluviometroViewModel.redondearA6Decimales(latLng.latitude)
+                                    val lngRedondeada = PluviometroViewModel.redondearA6Decimales(latLng.longitude)
+                                    val nuevoLatLng = LatLng(latRedondeada, lngRedondeada)
+                                    pluviometroViewModel.setUbicacionDraft(nuevoLatLng)
+                                    pluviometroViewModel.setLatitudDraft(String.format(Locale.US, "%.6f", latRedondeada))
+                                    pluviometroViewModel.setLongitudDraft(String.format(Locale.US, "%.6f", lngRedondeada))
                                 }
                             ) {
                                 ubicacionSeleccionada?.let { ubicacion ->
@@ -623,7 +809,7 @@ fun RegistroPluviometroScreen(
 
                         if (ubicacionSeleccionada != null) {
                             Text(
-                                text = "Coordenadas: Lat ${String.format("%.6f", ubicacionSeleccionada!!.latitude)}, Lng ${String.format("%.6f", ubicacionSeleccionada!!.longitude)}",
+                                text = "Coordenadas seleccionadas: Lat ${String.format(Locale.US, "%.6f", ubicacionSeleccionada!!.latitude)}, Lng ${String.format(Locale.US, "%.6f", ubicacionSeleccionada!!.longitude)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.primary
                             )

@@ -36,6 +36,61 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    // ===== CONSTANTES Y FILTRADO DE COORDENADAS =====
+    companion object {
+        const val MAX_DECIMALES_COORDENADA = 6
+        const val MAX_ENTEROS_LATITUD = 2
+        const val MAX_ENTEROS_LONGITUD = 3
+        const val MAX_LONGITUD_TEXTO_LATITUD = 10 // signo(1) + 2 enteros + sep(1) + 6 decimales = 10
+        const val MAX_LONGITUD_TEXTO_LONGITUD = 11 // signo(1) + 3 enteros + sep(1) + 6 decimales = 11
+
+        val REGEX_LATITUD = Regex("^-?\\d{0,2}([.,]\\d{0,6})?$")
+        val REGEX_LONGITUD = Regex("^-?\\d{0,3}([.,]\\d{0,6})?$")
+
+        /**
+         * Redondea un valor Double a 6 decimales usando Math.round(x * 1e6) / 1e6.
+         */
+        fun redondearA6Decimales(valor: Double): Double {
+            return Math.round(valor * 1e6) / 1e6
+        }
+
+        /**
+         * Filtra la entrada de texto para latitud o longitud.
+         * - Acepta estados intermedios: "", "-", "14.", "-86.", ".5"
+         * - Pegado: si trae más de 6 decimales, lo recorta al 6to decimal sin redondear.
+         * - Si no cumple las reglas, devuelve null (rechazado).
+         */
+        fun filtrarEntradaCoordenada(texto: String, esLatitud: Boolean): String? {
+            if (texto.isEmpty()) return ""
+
+            // 1. Manejo de pegado con más de 6 decimales
+            val separadores = texto.count { it == '.' || it == ',' }
+            var textoProcesado = texto
+            if (separadores == 1) {
+                val sepIndex = textoProcesado.indexOfAny(charArrayOf('.', ','))
+                val parteEnteraYSigno = textoProcesado.substring(0, sepIndex + 1)
+                val parteDecimal = textoProcesado.substring(sepIndex + 1)
+                if (parteDecimal.length > MAX_DECIMALES_COORDENADA) {
+                    textoProcesado = parteEnteraYSigno + parteDecimal.take(MAX_DECIMALES_COORDENADA)
+                }
+            }
+
+            // 2. Validar con la regex y longitud máxima correspondiente
+            val regex = if (esLatitud) REGEX_LATITUD else REGEX_LONGITUD
+            val maxLen = if (esLatitud) MAX_LONGITUD_TEXTO_LATITUD else MAX_LONGITUD_TEXTO_LONGITUD
+
+            if (textoProcesado.length <= maxLen && regex.matches(textoProcesado)) {
+                return textoProcesado
+            }
+
+            return null
+        }
+    }
+
+    fun filtrarEntradaCoordenada(texto: String, esLatitud: Boolean): String? {
+        return Companion.filtrarEntradaCoordenada(texto, esLatitud)
+    }
+
     // ===== ESTADO DEL FORMULARIO (PERSISTENCIA AL NAVEGAR) =====
     private val _direccionDraft = MutableStateFlow("")
     val direccionDraft = _direccionDraft.asStateFlow()
@@ -69,6 +124,14 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
     val ubicacionDraft = _ubicacionDraft.asStateFlow()
     fun setUbicacionDraft(value: com.google.android.gms.maps.model.LatLng?) { _ubicacionDraft.value = value }
 
+    private val _latitudDraft = MutableStateFlow("")
+    val latitudDraft = _latitudDraft.asStateFlow()
+    fun setLatitudDraft(value: String) { _latitudDraft.value = value }
+
+    private val _longitudDraft = MutableStateFlow("")
+    val longitudDraft = _longitudDraft.asStateFlow()
+    fun setLongitudDraft(value: String) { _longitudDraft.value = value }
+
     // ✅ ESTADO PARA CÓDIGO GENERADO
     private val _codigoGenerado = MutableStateFlow("")
     val codigoGenerado: StateFlow<String> = _codigoGenerado.asStateFlow()
@@ -83,6 +146,39 @@ class PluviometroViewModel(application: Application) : AndroidViewModel(applicat
         _observacionesDraft.value = ""
         _ubicacionDraft.value = null
         _codigoGenerado.value = ""
+        _latitudDraft.value = ""
+        _longitudDraft.value = ""
+    }
+
+    // ===== VALIDACIÓN DE COORDENADAS =====
+    fun validarLatitud(lat: Double?): String? {
+        if (lat == null) return "Ingrese una latitud válida entre -90 y 90"
+        if (!lat.isFinite()) return "La latitud debe ser un número válido"
+        if (lat !in -90.0..90.0) return "La latitud debe estar entre -90 y 90"
+        return null
+    }
+
+    fun validarLongitud(lng: Double?): String? {
+        if (lng == null) return "Ingrese una longitud válida entre -180 y 180"
+        if (!lng.isFinite()) return "La longitud debe ser un número válido"
+        if (lng !in -180.0..180.0) return "La longitud debe estar entre -180 y 180"
+        return null
+    }
+
+    fun validarCoordenadas(lat: Double?, lng: Double?): String? {
+        if (lat == null || lng == null) return "Debe ingresar o seleccionar una ubicación válida"
+        val errorLat = validarLatitud(lat)
+        if (errorLat != null) return errorLat
+        val errorLng = validarLongitud(lng)
+        if (errorLng != null) return errorLng
+        return null
+    }
+
+    fun estaFueraDeHonduras(lat: Double?, lng: Double?): Boolean {
+        if (lat == null || lng == null) return false
+        if (!lat.isFinite() || !lng.isFinite()) return false
+        if (lat !in -90.0..90.0 || lng !in -180.0..180.0) return false
+        return lat !in 13.0..16.0 || lng !in -89.0..-83.0
     }
 
     // ===== LÓGICA DE CÓDIGO =====
